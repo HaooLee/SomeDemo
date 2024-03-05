@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>自动布局</title>
+    <script src="./dagre/dagre.js"></script>
+    <style>
+        canvas {
+            border: 1px solid #000000;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" width="1920" height="1080"></canvas>
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    translate.x -= e.deltaX;
+    translate.y -= e.deltaY;
+    drawAllNodes();
+  });
+  canvas.addEventListener('contextmenu', function(event) {
+    event.preventDefault();
+  });
+  canvas.addEventListener('mousedown', handleClick);
+  function handleClick(event) {
+    const x = event.offsetX;
+    const y = event.offsetY;
+    console.log(x, y);
+  }
+
+  const translate = {
+    x: 0,
+    y: 0,
+  };
+
+  const nodeRect = {
+    width: 170,
+    height: 100,
+  };
+  const g = new dagre.graphlib.Graph();
+  // 设置默认的节点和边的样式
+  // "network-simplex" "tight-tree" "longest-path"
+  g.setGraph({rankdir: 'LR', ranker: 'network-simple', ranksep: 130, nodesep: 190});
+  g.setDefaultEdgeLabel((v,w,n) => {
+    // console.log(v,w,n);
+    return {};
+  });
+  fetch('./chapterData.json').then(res => res.json()).then(({1: data}) => {
+    data.nodes.forEach(node => {
+      g.setNode(node.id, {label: node.label});
+    });
+    data.edges.forEach(link => {
+      g.setEdge(link.source, link.target);
+    });
+    console.time('layout');
+    dagre.layout(g);
+    console.timeEnd('layout');
+    // 绘制节点和边
+    console.log(g);
+    drawAllNodes();
+  });
+
+
+
+  function getDistance(p1, p2) {
+    return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
+  }
+
+  function getBorderRadiusPoints(p0, p1, p2, r) {
+    if (p0.y === p2.y) {
+      return [p0, p2];
+    }
+
+    if (Math.abs(p0.y - p2.y) < r){
+      r = (p0.y - p2.y) / 2;
+    }
+
+    const d0 = getDistance(p0, p1);
+    const d1 = getDistance(p2, p1);
+
+    if (d0 < r) {
+      r = d0;
+    }
+
+    if (d1 < r) {
+      r = d1;
+    }
+
+    const ps = {
+      x: p1.x - (r / d0) * (p1.x - p0.x),
+      y: p1.y - (r / d0) * (p1.y - p0.y)
+    };
+    const pt = {
+      x: p1.x - (r / d1) * (p1.x - p2.x),
+      y: p1.y - (r / d1) * (p1.y - p2.y)
+    };
+
+    return [ps, pt];
+  }
+  function getPathWithBorderRadius(startPoint, endPoint) {
+      const controlPoints =  [
+      startPoint,
+      {
+        x: endPoint.x / 3 + (2 / 3) * startPoint.x,
+        y: startPoint.y
+      },
+      {
+        x: endPoint.x / 3 + (2 / 3) * startPoint.x,
+        y: endPoint.y
+      },
+      endPoint
+    ];
+    let path = [];
+    // console.log(controlPoints);
+    controlPoints.forEach((currentPoint, idx) => {
+      if (idx === 0) {
+        path.push(["M", currentPoint.x, currentPoint.y]);
+        return;
+      }
+      const p1 = controlPoints[idx + 1];
+      const p2 = controlPoints[idx + 2];
+      if (!p1 || !p2) return;
+      const radiusPoint = getBorderRadiusPoints(currentPoint, p1, p2, 12);
+      const [ps, pt] = radiusPoint;
+      path = path.concat([
+        ["L", ps.x, ps.y], // 三分之一处
+        ["Q", p1.x, p1.y, pt.x, pt.y], // 三分之一处
+        ["L", pt.x, pt.y]
+      ]);
+    });
+
+    path.push(["L", controlPoints[controlPoints.length - 1].x, controlPoints[controlPoints.length - 1].y]);
+    return path;
+  }
+
+  function polylineFinding(sNode, tNode, offset = 40) {
+    ctx.fillRect(sNode.x * 3 - nodeRect.width / 2, sNode.y - nodeRect.height / 2, 3, 3);
+    const sBBox = getExpandedBBox(sNode, offset);
+    const tBBox = getExpandedBBox(tNode, offset);
+
+    // const sPoint = getExpandedPort(sNode, sPort, offset);
+    // const tPoint = getExpandedPort(tNode, tPort, offset);
+
+    const sPoint = {
+        x: sBBox.maxX,
+        y: sNode.y,
+    }
+    const tPoint = {
+        x: tBBox.minX,
+        y: tNode.y,
+    }
+
+    let points = getConnectablePoints(sBBox, tBBox, sPoint, tPoint);
+
+    points = filterConnectablePoints(points, sBBox);
+    points = filterConnectablePoints(points, tBBox);
+    // console.log(points, sPoint, tPoint);
+    return [sPoint, ...AStar(points, sPoint, tPoint),tPoint] //AStar(points, sPoint, tPoint);
+
+  }
+
+  function getExpandedBBox(node, offset) {
+    // 实现获取带偏移量的包围盒的逻辑
+    const bbox = {
+      x: node.x,
+      y: node.y,
+      width: nodeRect .width + offset * 2,
+      height: nodeRect.height + offset * 2,
+      minX: node.x - nodeRect.width / 2 - offset,
+      minY: node.y - nodeRect.height / 2 - offset,
+      maxX: node.x + nodeRect.width / 2 + offset,
+      maxY: node.y + nodeRect.height / 2 + offset,
+    };
+    return bbox;
+  }
+
+  function getConnectablePoints(sBBox, tBBox, sPoint, tPoint) {
+    const lineBBox = getBBoxFromVertexes(sPoint, tPoint);
+    const outerBBox = combineBBoxes(sBBox, tBBox);
+    const points = [];
+
+    points.push(...vertexOfBBox(sBBox));
+    points.push(...vertexOfBBox(tBBox));
+    points.push(...vertexOfBBox(lineBBox));
+
+    const bboxes = [outerBBox, sBBox, tBBox, lineBBox];
+
+    for (const bbox of bboxes) {
+      points.push(...crossPointsByLineAndBBox(bbox, "horizontal")); // 中心横线
+      points.push(...crossPointsByLineAndBBox(bbox, "vertical")); // 中心竖线
+    }
+
+    return points;
+  }
+
+  function getBBoxFromVertexes(point1, point2) {
+    const minX = Math.min(point1.x, point2.x);
+    const minY = Math.min(point1.y, point2.y);
+    const maxX = Math.max(point1.x, point2.x);
+    const maxY = Math.max(point1.y, point2.y);
+
+    return { minX, minY, maxX, maxY };
+  }
+
+  function combineBBoxes(bbox1, bbox2) {
+    const minX = Math.min(bbox1.minX, bbox2.minX);
+    const minY = Math.min(bbox1.minY, bbox2.minY);
+    const maxX = Math.max(bbox1.maxX, bbox2.maxX);
+    const maxY = Math.max(bbox1.maxY, bbox2.maxY);
+
+    return { minX, minY, maxX, maxY };
+  }
+
+  function vertexOfBBox(bbox) {
+    const { minX, minY, maxX, maxY } = bbox;
+
+    return [
+      { x: minX, y: minY }, // 左上角
+      { x: minX, y: maxY }, // 左下角
+      { x: maxX, y: minY }, // 右上角
+      { x: maxX, y: maxY }  // 右下角
+    ];
+  }
+
+  function crossPointsByLineAndBBox(bbox, lineType) {
+    const { minX, minY, maxX, maxY } = bbox;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    if (lineType === "horizontal") {
+      return [
+        { x: minX, y: centerY },
+        { x: maxX, y: centerY }
+      ];
+    } else if (lineType === "vertical") {
+      return [
+        { x: centerX, y: minY },
+        { x: centerX, y: maxY }
+      ];
+    }
+
+    return [];
+  }
+
+  function filterConnectablePoints(points, bbox) {
+    const filteredPoints = [];
+
+    for (const point of points) {
+      if (!isPointInside(point, bbox)) {
+        filteredPoints.push(point);
+      }
+    }
+
+    return filteredPoints;
+  }
+
+  function isPointInside(point, bbox) {
+    const { minX, minY, maxX, maxY } = bbox;
+    const { x, y } = point;
+
+    return x > minX && x < maxX && y > minY && y < maxY;
+  }
+
+
+
+
+
+  function drawNode(nodeData) {
+    ctx.beginPath();
+    ctx.rect(nodeData.x * 3 - nodeRect.width / 2, nodeData.y - nodeRect.height / 2, nodeRect.width, nodeRect.height);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.stroke();
+    ctx.closePath();
+    ctx.beginPath();
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(nodeData.label, nodeData.x * 3, nodeData.y);
+    ctx.closePath();
+  }
+
+  function drawEdge(edgeData) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    console.log(edgeData);
+
+    const points = polylineFinding(g.node(edgeData.v), g.node(edgeData.w));
+
+    const pathString = getPathWithBorderRadius(points).map(item => {
+      return item.join(' ');
+    }).join(' ');
+
+
+
+    const path = new Path2D(pathString)
+    ctx.stroke(path);
+  }
+
+  function drawAllNodes() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(translate.x, translate.y);
+    // 绘制所有的块
+    g.nodes().forEach((node) => {
+      const nodeData = g.node(node);
+      drawNode(nodeData);
+    });
+
+    // 绘制所有的边
+    g.edges().forEach((edge) => {
+      const edgeData = g.edge(edge);
+      drawEdge(edge);
+    });
+    ctx.restore();
+  }
+
+</script>
+</body>
+</html>

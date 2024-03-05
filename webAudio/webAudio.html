@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+</head>
+<body>
+<input type='file' id='file'>
+<button id='btn'>开始分析</button>
+<button id='print'>打印当前DataArray</button>
+
+
+<canvas id='cvs' width='1200' height='400'></canvas>
+<script>
+  // const file = document.querySelector('#file')
+  // file.onchange = function (event) {
+  //   let file = event.target.files[0];
+  //   // 开始识别
+  //   let reader = new FileReader();
+  //   reader.readAsArrayBuffer(file);
+  //   reader.onload = function (event) {
+  //     let arrBuffer = event.target.result;
+  //     // arrBuffer就是包含音频数据的ArrayBuffer对象
+  //     let audioCtx = new AudioContext();
+  //
+  //     audioCtx.decodeAudioData(arrBuffer, function(audioBuffer) {
+  //       // audioBuffer就是AudioBuffer
+  //
+  //       console.log(audioBuffer)
+  //     });
+  //   };
+  // };
+
+  const btnDom = document.querySelector('#btn')
+  const printDom = document.querySelector('#print')
+  let canvas = document.querySelector("#cvs");
+  let ctx = canvas.getContext("2d");
+
+  let recorder
+  const RECORD = () => {
+    const btnRecording = async () => {
+      if (!recorder) {
+        recorder = true
+
+        const stream = await window.navigator.mediaDevices.getUserMedia({
+          audio: true
+        })
+
+        let audioCtx = new AudioContext()
+
+        let analyser = audioCtx.createAnalyser();
+        // analyser.minDecibels = -90;
+        // analyser.maxDecibels = -10;
+        // analyser.smoothingTimeConstant = 0.85;
+
+        let distortion = audioCtx.createWaveShaper();
+        let gainNode = audioCtx.createGain();
+        let biquadFilter = audioCtx.createBiquadFilter();
+        let convolver = audioCtx.createConvolver();
+
+        let source = audioCtx.createMediaStreamSource(stream);
+        source.connect(distortion)
+        distortion.connect(biquadFilter);
+        biquadFilter.connect(gainNode);
+        convolver.connect(gainNode);
+        gainNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        analyser.fftSize = 512;
+        let bufferLength = analyser.frequencyBinCount;
+        let dataArray = new Uint8Array(bufferLength);
+        let WIDTH = canvas.width
+        let HEIGHT = canvas.height
+
+        const gradient = ctx.createLinearGradient(0,0,0,HEIGHT)
+        gradient.addColorStop(0,'red')
+        gradient.addColorStop(0.5,'yellow')
+        gradient.addColorStop(1,'green')
+        ctx.fillStyle = gradient
+
+        draw();
+        function draw() {
+
+          timer = requestAnimationFrame(draw);
+          ctx.clearRect(0, 0, WIDTH, HEIGHT);
+          // analyser.getByteTimeDomainData(dataArray);
+          analyser.getByteFrequencyData(dataArray);
+          // analyser.getFloatFrequencyData(dataArray);
+
+          let w = WIDTH  / bufferLength ;
+          // console.log(dataArray)
+          for(let i = 0; i < bufferLength; i++){
+            let h = dataArray[i] / 256 * HEIGHT
+            ctx.fillRect(w * i, HEIGHT - h, w * 0.9, h);
+          }
+        };
+
+
+        // 录制硬pin
+        // recorder = new MediaRecorder(MEDIA_STREAM)
+        // recorder.ondataavailable = event => {
+        //   // Update the UI
+        //   btnDom.innerText = '开始录音'
+        //   recorder = null
+        //   // Create the blob and show an audio element
+        //   CHUNKS.push(event.data)
+        //   console.log( CHUNKS)
+        //   const AUDIO_BLOB = new Blob(CHUNKS, {type: "audio/mp3"})
+        //
+        //   let reader = new FileReader();
+        //   reader.readAsArrayBuffer(AUDIO_BLOB);
+        //   reader.onload = function (event) {
+        //     let arrBuffer = event.target.result;
+        //     let audioCtx = new AudioContext();
+        //
+        //     audioCtx.decodeAudioData(arrBuffer, function(audioBuffer) {
+        //       console.log(audioBuffer)
+        //     });
+        //   };
+        // }
+        btnDom.innerText = '停止分析'
+        // recorder.start()
+      } else {
+        cancelAnimationFrame(timer)
+        recorder = false
+        // recorder.stop()
+      }
+    }
+    btnRecording()
+  }
+
+  btnDom.addEventListener('click', RECORD)
+
+</script>
+</body>
+</html>

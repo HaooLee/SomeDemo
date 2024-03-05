@@ -1,0 +1,26 @@
+<body>
+<h1>选择一个网页打开</h1>
+<ul id="urls">
+    <!-- URL 列表将在这里生成 -->
+</ul>
+<script>
+  const { ipcRenderer } = require('electron')
+  const shops = [
+    {name:'zhangsan'},
+    {name:'lisi'},
+  ]
+
+  const ul = document.getElementById('urls')
+  shops.forEach((shop, index) => {
+    const li = document.createElement('li')
+    const a = document.createElement('a')
+    a.textContent = '页面 '+ shop.name + (index + 1)
+    a.href = '#'
+    a.addEventListener('click', () => ipcRenderer.send('open-url', {
+      name: shop.name,
+    }))
+    li.appendChild(a)
+    ul.appendChild(li)
+  })
+</script>
+</body>

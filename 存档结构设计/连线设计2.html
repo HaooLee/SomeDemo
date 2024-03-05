@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+  <style>
+    body{
+      margin: 0;
+      padding: 0;
+    }
+    #cvs{
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+<canvas id="cvs" width="1920" height="1000"></canvas>
+
+<script>
+  class SortedArray {
+    constructor() {
+      this.arr = [];
+      this.map = {};
+    }
+     _innerAdd(item, length) {
+      const idxRange = [0, length - 1];
+      while (idxRange[1] - idxRange[0] > 1) {
+        const midIdx = Math.floor((idxRange[0] + idxRange[1]) / 2);
+        if (this.arr[midIdx].value > item.value) {
+          idxRange[1] = midIdx;
+        } else if (this.arr[midIdx].value < item.value) {
+          idxRange[0] = midIdx;
+        } else {
+          this.arr.splice(midIdx, 0, item);
+          this.map[item.id] = true;
+          return;
+        }
+      }
+      this.arr.splice(idxRange[1], 0, item);
+      this.map[item.id] = true;
+    }
+     add(item) {
+      // 已经存在，先移除
+      delete this.map[item.id];
+
+      const length = this.arr.length;
+      if (!length) {
+        this.arr.push(item);
+        this.map[item.id] = true;
+        return;
+      }
+
+      // 比最后一个大，加入尾部
+      if (this.arr[length - 1].value < item.value) {
+        this.arr.push(item);
+        this.map[item.id] = true;
+        return;
+      }
+      this._innerAdd(item, length);
+
+    }
+    // only remove from the map to avoid cost
+    // clear the invalid (not in the map) item when calling minId(true)
+     remove(id) {
+      if (!this.map[id]) return;
+      delete this.map[id];
+    }
+     _clearAndGetMinId(){
+      let res;
+      for (let i = this.arr.length - 1; i >= 0; i--) {
+        if (this.map[this.arr[i].id]) res = this.arr[i].id;
+        else this.arr.splice(i, 1);
+      }
+      return res;
+    }
+     _findFirstId() {
+      while (this.arr.length) {
+        const first = this.arr.shift();
+        if (this.map[first.id]) return first.id;
+      }
+    }
+     minId(clear) {
+      if (clear) {
+        return this._clearAndGetMinId();
+      } else {
+        return this._findFirstId();
+      }
+    }
+  }
+
+  const canvas = document.getElementById('cvs')
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    translate.x -= e.deltaX;
+    translate.y -= e.deltaY;
+    draw()
+  });
+  canvas.addEventListener('contextmenu', function(event) {
+    event.preventDefault();
+  });
+  canvas.addEventListener('mousedown', handleClick);
+  function handleClick(event) {
+    const x = event.offsetX;
+    const y = event.offsetY;
+    nodes[1] = {
+      x:x - translate.x,
+      y:y - translate.y,
+    }
+    draw()
+  }
+
+  const ctx = canvas.getContext('2d')
+  const translate = {x:110,y:110}
+
+  const nodeRect = {
+    width: 150,
+    height: 100,
+  }
+
+  const nodes = [
+    {
+      x:11,
+      y:22,
+    },{
+      x:500,
+      y:400,
+    }
+  ]
+
+  const defaultCfg = {
+    offset: 20,
+    maxAllowedDirectionChange: Math.PI / 2,
+    maximumLoops: 20000,
+    gridSize: 10,
+    directions: [
+      { stepX: 1, stepY: 0 }, // right
+      { stepX: -1, stepY: 0 }, // left
+      { stepX: 0, stepY: 1 }, // bottom
+      { stepX: 0, stepY: -1 }, // top
+    ],
+    get penalties() {
+      return {
+        0: 0,
+        45: this.gridSize / 2,
+        90: this.gridSize / 2,
+      };
+    },
+    distFunc: getDistance,
+    fallbackRoute:  (startPoint, endPoint, startNode, endNode, cfg) => {
+      console.log('fallbackRoute')
+      const { gridSize } = cfg;
+      const scaleStartPoint = {
+        x: pos2GridIx(startPoint.x, gridSize),
+        y: pos2GridIx(startPoint.y, gridSize),
+      };
+      const scaleEndPoint = {
+        x: pos2GridIx(endPoint.x, gridSize),
+        y: pos2GridIx(endPoint.y, gridSize),
+      };
+      const startPoints = getBoxPoints(scaleStartPoint, startPoint, startNode, scaleEndPoint, cfg);
+      const endPoints = getBoxPoints(scaleEndPoint, endPoint, endNode, scaleStartPoint, cfg);
+      return startPoints.concat(endPoints);
+    }
+  };
+
+  const offset = 30
+  function searchPolyline(sNode, tNode){
+    const sBBox = getExpandedBBox(sNode, offset);
+    const tBBox = getExpandedBBox(tNode, offset);
+
+    const path = pathFinder(
+      sNode,
+      tNode,
+      sBBox,
+      tBBox,
+      defaultCfg,
+    )
+    return path
+  }
+
+  function pathFinder (
+    startPoint,
+    endPoint,
+    startNode,
+    endNode,
+    routerCfg,
+  ) {
+    if (isNaN(startPoint.x) || isNaN(endPoint.x)) return [];
+    const cfg = routerCfg
+    cfg.obstacles = cfg.obstacles || [];
+    const { penalties, gridSize } = cfg;
+    const map = getObstacleMap(cfg.obstacles.concat([startNode, endNode]), gridSize, cfg.offset);
+
+    const scaleStartPoint = {
+      x: pos2GridIx(startPoint.x, gridSize),
+      y: pos2GridIx(startPoint.y, gridSize),
+    };
+    const scaleEndPoint = {
+      x: pos2GridIx(endPoint.x, gridSize),
+      y: pos2GridIx(endPoint.y, gridSize),
+    };
+
+    startPoint.id = `${scaleStartPoint.x}|||${scaleStartPoint.y}`;
+    endPoint.id = `${scaleEndPoint.x}|||${scaleEndPoint.y}`;
+    const startPoints = getBoxPoints(scaleStartPoint, startPoint, startNode, scaleEndPoint, cfg);
+    const endPoints = getBoxPoints(scaleEndPoint, endPoint, endNode, scaleStartPoint, cfg);
+    startPoints.forEach((point) => {
+      delete map[point.id];
+    });
+    endPoints.forEach((point) => {
+      delete map[point.id];
+    });
+
+    const openSet = {};
+    const closedSet = {};
+    const cameFrom = {};
+
+    // 从起点到当前点已产生的 cost, default: Infinity
+    const gScore = {};
+
+    // 起点经过当前点到达终点预估的 cost, default: Infinity
+    const fScore = {};
+
+    const sortedOpenSet = new SortedArray();
+
+    // initialize
+    for (let i = 0; i < startPoints.length; i++) {
+      const firstStep = startPoints[i];
+      openSet[firstStep.id] = firstStep;
+      gScore[firstStep.id] = 0;
+      fScore[firstStep.id] = estimateCost(firstStep, endPoints, cfg.distFunc);
+      sortedOpenSet.add({
+        id: firstStep.id,
+        value: fScore[firstStep.id]
+      });
+    }
+    let remainLoops = cfg.maximumLoops;
+    let current, direction, neighbor, neighborCost, costFromStart, directionChange;
+    let curCost = Infinity;
+    const endPointMap = {};
+    endPoints.forEach(point => {
+      endPointMap[`${point.x}|||${point.y}`] = true;
+    })
+    Object.keys(openSet).forEach((key) => {
+      const id = openSet[key].id;
+      if (fScore[id] <= curCost) {
+        curCost = fScore[id];
+        current = openSet[id];
+      }
+    });
+    while (Object.keys(openSet).length > 0 && remainLoops > 0) {
+      const minId = sortedOpenSet.minId((remainLoops + 1) % 30 === 0);
+      if (minId) {
+        current = openSet[minId];
+      } else {
+        break;
+      }
+
+      // 如果 fScore 最小的点就是终点
+      if (endPointMap[`${current.x}|||${current.y}`]) {
+        return getControlPoints(
+          current,
+          cameFrom,
+          scaleStartPoint,
+          endPoint,
+          startPoint,
+          scaleEndPoint,
+          gridSize,
+        );
+      }
+
+      delete openSet[current.id];
+      sortedOpenSet.remove(current.id);
+      closedSet[current.id] = true;
+
+      // 获取符合条件的下一步的候选连接点
+      // 沿候选方向走一步
+      for (let i = 0; i < cfg.directions.length; i++) {
+        direction = cfg.directions[i];
+        const neighborId = `${Math.round(current.x) + direction.stepX}|||${Math.round(current.y) + direction.stepY
+        }`
+        neighbor = {
+          x: current.x + direction.stepX,
+          y: current.y + direction.stepY,
+          id: neighborId,
+        };
+
+        if (closedSet[neighborId]) continue;
+        directionChange = getDirectionChange(current, neighbor, cameFrom, scaleStartPoint);
+        if (directionChange > cfg.maxAllowedDirectionChange) continue;
+        if (map[neighborId]) continue; // 如果交叉则跳过
+
+        // 将候选点加入 openSet, 并计算每个候选点的 cost
+        if (!openSet[neighborId]) {
+          openSet[neighborId] = neighbor;
+        }
+
+        const directionPenalties = penalties[directionChange]
+        neighborCost =
+          cfg.distFunc(current, neighbor) +
+          (isNaN(directionPenalties) ? gridSize : directionPenalties);
+        costFromStart = gScore[current.id] + neighborCost;
+        const neighborGScore = gScore[neighborId];
+        if (neighborGScore && costFromStart >= neighborGScore) {
+          continue;
+        }
+
+        cameFrom[neighborId] = current;
+        gScore[neighborId] = costFromStart;
+        fScore[neighborId] = costFromStart + estimateCost(neighbor, endPoints, cfg.distFunc);
+
+        sortedOpenSet.add({
+          id: neighborId,
+          value: fScore[neighborId]
+        });
+      }
+      remainLoops -= 1;
+    }
+    return cfg.fallbackRoute(startPoint, endPoint, startNode, endNode, cfg);
+  };
+
+  function  estimateCost (from, endPoints, distFunc){
+    let min = Infinity;
+    for (let i = 0, len = endPoints.length; i < len; i++) {
+      const cost = distFunc(from, endPoints[i]);
+      if (cost < min) {
+        min = cost;
+      }
+    }
+    return min;
+  }
+
+  function getControlPoints  (
+    current,
+    cameFrom,
+    scaleStartPoint,
+    endPoint,
+    startPoint,
+    scaleEndPoint,
+    gridSize,
+  ) {
+    const controlPoints = [endPoint];
+    let pointZero = endPoint;
+    let currentId = current.id;
+    let currentX = current.x;
+    let currentY = current.y;
+    const lastPoint = {
+      x: currentX,
+      y: currentY,
+      id: currentId,
+    };
+    if (getDirectionChange(lastPoint, scaleEndPoint, cameFrom, scaleStartPoint)) {
+      pointZero = {
+        x: scaleEndPoint.x === endPoint.x ? endPoint.x : lastPoint.x * gridSize,
+        y: scaleEndPoint.y === endPoint.y ? endPoint.y : lastPoint.y * gridSize,
+      };
+      controlPoints.unshift(pointZero);
+    }
+    let currentCameFrom = cameFrom[currentId];
+    while (currentCameFrom && currentCameFrom.id !== currentId) {
+      const point = {
+        x: currentX,
+        y: currentY,
+        id: currentId,
+      };
+      const prePoint = {
+        x: currentCameFrom.x,
+        y: currentCameFrom.y,
+        id: currentCameFrom.id,
+      };
+      const directionChange = getDirectionChange(prePoint, point, cameFrom, scaleStartPoint);
+      if (directionChange) {
+        pointZero = {
+          x: prePoint.x === point.x ? pointZero.x : prePoint.x * gridSize,
+          y: prePoint.y === point.y ? pointZero.y : prePoint.y * gridSize,
+        }
+        controlPoints.unshift(pointZero);
+      }
+
+      currentId = prePoint.id;
+      currentX = prePoint.x;
+      currentY = prePoint.y;
+      currentCameFrom = cameFrom[currentId];
+    }
+
+    // 和startNode对齐
+    controlPoints[0].x = currentX === scaleStartPoint.x ? startPoint.x : pointZero.x;
+    controlPoints[0].y = currentY === scaleStartPoint.y ? startPoint.y : pointZero.y;
+    controlPoints.unshift(startPoint);
+    return controlPoints;
+  }
+
+  function getDirectionChange (
+    current,
+    neighbor,
+    cameFrom,
+  scaleStartPoint,
+  ) {
+    const directionAngle = getDirectionAngle(current, neighbor);
+    const currentCameFrom = cameFrom[current.id]
+    if (!currentCameFrom) {
+      const startAngle = getDirectionAngle(scaleStartPoint, current);
+      return getAngleDiff(startAngle, directionAngle);
+    }
+    const prevDirectionAngle = getDirectionAngle(
+      {
+        x: currentCameFrom.x,
+        y: currentCameFrom.y,
+      },
+      current,
+    );
+    return getAngleDiff(prevDirectionAngle, directionAngle);
+  }
+
+  function getAngleDiff  (angle1, angle2){
+    const directionChange = Math.abs(angle1 - angle2);
+    return directionChange > Math.PI ? 2 * Math.PI - directionChange : directionChange;
+  }
+
+  function getDirectionAngle (p1, p2) {
+    const deltaX = p2.x - p1.x;
+    const deltaY = p2.y - p1.y;
+    if (deltaX || deltaY) {
+      return Math.atan2(deltaY, deltaX);
+    }
+    return 0;
+  }
+
+  // 计算考虑 offset 后的 BBox 上的连接点
+  function getBoxPoints (
+      point, // 被 gridSize 格式化后的位置（anchorPoint）
+    oriPoint, // 未被 gridSize 格式化的位置（anchorPoint）
+    node, // 原始节点，用于获取 bbox
+    anotherPoint, // 另一端被 gridSize 格式化后的位置
+    cfg,
+    ){
+    const points = [];
+    // create-edge 生成边的过程中，endNode 为 null
+    if (!node) {
+      return [point];
+    }
+
+    const { directions, offset } = cfg;
+    const bbox = getBBox(node);
+    const isInside =
+      oriPoint.x > bbox.minX &&
+      oriPoint.x < bbox.maxX &&
+      oriPoint.y > bbox.minY &&
+      oriPoint.y < bbox.maxY;
+
+    const expandBBox = getExpandedBBox(bbox, offset);
+    for (const i in expandBBox) {
+      expandBBox[i] = pos2GridIx(expandBBox[i], cfg.gridSize);
+    }
+
+    if (isInside) {
+      // 如果 anchorPoint 在节点内部，允许第一段线穿过节点
+      for (const dir of directions) {
+        const bounds = [
+          [
+            {
+              x: expandBBox.minX,
+              y: expandBBox.minY,
+            },
+            {
+              x: expandBBox.maxX,
+              y: expandBBox.minY,
+            },
+          ],
+          [
+            {
+              x: expandBBox.minX,
+              y: expandBBox.minY,
+            },
+            {
+              x: expandBBox.minX,
+              y: expandBBox.maxY,
+            },
+          ],
+          [
+            {
+              x: expandBBox.maxX,
+              y: expandBBox.minY,
+            },
+            {
+              x: expandBBox.maxX,
+              y: expandBBox.maxY,
+            },
+          ],
+          [
+            {
+              x: expandBBox.minX,
+              y: expandBBox.maxY,
+            },
+            {
+              x: expandBBox.maxX,
+              y: expandBBox.maxY,
+            },
+          ],
+        ];
+        for (let i = 0; i < 4; i++) {
+          const boundLine = bounds[i];
+          const insterctP = getLineIntersect(
+            point,
+            { x: point.x + dir.stepX * expandBBox.width, y: point.y + dir.stepY * expandBBox.height },
+            boundLine[0],
+            boundLine[1],
+          ) ;
+          if (insterctP && !isSegmentCrossingBBox(point, insterctP, bbox)) {
+            insterctP.id = `${insterctP.x}|||${insterctP.y}`;
+            points.push(insterctP);
+          }
+        }
+      }
+      return points;
+    }
+    // 如果 anchorPoint 在节点上，只有一个可选方向
+    const insterctP = getExpandedBBoxPoint(expandBBox, point, anotherPoint);
+    insterctP.id = `${insterctP.x}|||${insterctP.y}`;
+    return [insterctP];
+  };
+
+  function getDistance(p1, p2) {
+    return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
+  }
+
+  function getExpandedBBoxPoint (
+    bbox, // 将原来节点 bbox 扩展了 offset 后的 bbox，且被 gridSize 格式化
+    point, // 被 gridSize 格式化后的位置（anchorPoint）
+    anotherPoint, // 另一端被 gridSize 格式化后的位置
+  ) {
+    const isHorizontal = isHorizontalPort(point, bbox);
+    if (isHorizontal === 0) {
+      // 说明锚点是节点中心，linkCenter: true。需要根据两个节点的相对关系决定方向
+      let x = bbox.centerX;
+      let y = bbox.centerY;
+      if (anotherPoint.y < point.y) {
+        // 另一端在左上/右上方时，总是从上方走
+        y = bbox.minY;
+      } else if (anotherPoint.x > point.x) {
+        // 另一端在右下方，往右边走
+        x = bbox.maxX;
+      } else if (anotherPoint.x < point.x) {
+        // 另一端在左下方，往左边走
+        x = bbox.minX;
+      } else if (anotherPoint.x === point.x) {
+        // 另一段在正下方，往下走
+        y = bbox.maxY;
+      }
+      return { x, y };
+    }
+    if (isHorizontal) {
+      return {
+        x: point.x > bbox.centerX ? bbox.maxX : bbox.minX,
+        y: point.y,
+      };
+    }
+    return {
+      x: point.x,
+      y: point.y > bbox.centerY ? bbox.maxY : bbox.minY,
+    };
+  };
+
+  function  isSegmentCrossingBBox  (p1, p2, bbox) {
+    if (bbox.width || bbox.height) {
+      const [pa, pb, pc, pd] = getPointsFromBBox(bbox);
+      return (
+        isSegmentsIntersected(p1, p2, pa, pb) ||
+        isSegmentsIntersected(p1, p2, pa, pd) ||
+        isSegmentsIntersected(p1, p2, pb, pc) ||
+        isSegmentsIntersected(p1, p2, pc, pd)
+      );
+    }
+    return false;
+  }
+
+  function isSegmentsIntersected (
+    p0,
+    p1,
+    p2,
+    p3,
+  ) {
+    const v1x = p2.x - p0.x;
+    const v1y = p2.y - p0.y;
+    const v2x = p3.x - p0.x;
+    const v2y = p3.y - p0.y;
+    const v3x = p2.x - p1.x;
+    const v3y = p2.y - p1.y;
+    const v4x = p3.x - p1.x;
+    const v4y = p3.y - p1.y;
+
+    const pd1 = v1x * v2y - v1y * v2x;
+    const pd2 = v3x * v4y - v3y * v4x;
+    const pd3 = v1x * v3y - v1y * v3x;
+    const pd4 = v2x * v4y - v2y * v4x;
+
+    return pd1 * pd2 <= 0 && pd3 * pd4 <= 0;
+  }
+
+  function getPointsFromBBox (bbox) {
+    return [
+      {
+        x: bbox.minX,
+        y: bbox.minY,
+      },
+      {
+        x: bbox.maxX,
+        y: bbox.minY,
+      },
+      {
+        x: bbox.maxX,
+        y: bbox.maxY,
+      },
+      {
+        x: bbox.minX,
+        y: bbox.maxY,
+      },
+    ];
+  }
+
+  function isHorizontalPort (port, bbox){
+    const dx = Math.abs(port.x - bbox.centerX);
+    const dy = Math.abs(port.y - bbox.centerY);
+    if (dx === 0 && dy === 0) return 0;
+    return dx / bbox.width > dy / bbox.height;
+  }
+
+  function getLineIntersect(p0, p1, p2, p3) {
+    const tolerance = 0.0001;
+
+    const E = {
+      x: p2.x - p0.x,
+      y: p2.y - p0.y,
+    };
+    const D0 = {
+      x: p1.x - p0.x,
+      y: p1.y - p0.y,
+    };
+    const D1 = {
+      x: p3.x - p2.x,
+      y: p3.y - p2.y,
+    };
+    const kross = D0.x * D1.y - D0.y * D1.x;
+    const sqrKross = kross * kross;
+    const invertKross = 1 / kross;
+    const sqrLen0 = D0.x * D0.x + D0.y * D0.y;
+    const sqrLen1 = D1.x * D1.x + D1.y * D1.y;
+    if (sqrKross > tolerance * sqrLen0 * sqrLen1) {
+      const s = (E.x * D1.y - E.y * D1.x) * invertKross;
+      const t = (E.x * D0.y - E.y * D0.x) * invertKross;
+      if (!isBetween(s, 0, 1) || !isBetween(t, 0, 1)) return null;
+      return {
+        x: p0.x + s * D0.x,
+        y: p0.y + s * D0.y,
+      };
+    }
+    return null;
+  };
+
+  function isBetween(value, min, max) {
+    return value >= min && value <= max
+  };
+
+  function pos2GridIx(pos, gridSize) {
+    const gridIx = Math.round(Math.abs(pos / gridSize));
+    const sign = pos < 0 ? -1 : 1;
+    return gridIx < 0 ? 0 : sign * gridIx;
+  };
+
+  function getObstacleMap (items, gridSize, offset) {
+    const map = {};
+    items.forEach((item) => {
+      // create-edge 时，当边类型为 polyline 时 endNode 为 null
+      if (!item) return;
+      console.log(item)
+      const bbox = getExpandedBBox(getBBox(item), offset);
+      for (let x = pos2GridIx(bbox.minX, gridSize); x <= pos2GridIx(bbox.maxX, gridSize); x += 1) {
+        for (let y = pos2GridIx(bbox.minY, gridSize); y <= pos2GridIx(bbox.maxY, gridSize); y += 1) {
+          map[`${x}|||${y}`] = true;
+        }
+      }
+    });
+    return map;
+  };
+
+  function getBBox(point){
+    return {
+      centerX: point.x,
+        centerY: point.y,
+        minX: point.x - nodeRect.width / 2,
+        minY: point.y - nodeRect.height / 2,
+      maxX: point.x + nodeRect.width / 2,
+        maxY: point.y + nodeRect.height / 2,
+      width: nodeRect.width,
+        height: nodeRect.height,
+    }
+  }
+
+  function getExpandedBBox (bbox, offset) {
+    if (bbox.width || bbox.height) {
+      return {
+        centerX: bbox.centerX,
+        centerY: bbox.centerY,
+        minX: bbox.minX - offset,
+        minY: bbox.minY - offset,
+        maxX: bbox.maxX + offset,
+        maxY: bbox.maxY + offset,
+        height: bbox.height + 2 * offset,
+        width: bbox.width + 2 * offset,
+      };
+    }
+    // when it is a point
+    return bbox;
+  }
+
+  function drawNode(nodes){
+    nodes.forEach((node) => {
+        ctx.beginPath();
+        //先绘制bbox
+        ctx.fillRect(node.x - 2, node.y - 2,4,4);
+        ctx.fillStyle = 'rgba(102,222,194,0.31)';
+        ctx.fillRect(node.x - nodeRect.width / 2, node.y - nodeRect.height / 2, nodeRect.width, nodeRect.height);
+
+    })
+  }
+
+  function drawPoints(points){
+    points.forEach((point) => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#FF0000';
+      ctx.fill();
+    })
+  }
+
+  function drawBBox(bbox, drawType, color){
+    ctx.beginPath();
+    if (drawType === 'fill') {
+      ctx.fillStyle = color;
+      ctx.fillRect( bbox.minX, bbox.minY, bbox.width, bbox.height);
+    } else {
+      ctx.strokeStyle = color;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect( bbox.minX, bbox.minY, bbox.width, bbox.height);
+    }
+  }
+
+  function drawEdge(path){
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) {
+      ctx.lineTo(path[i].x, path[i].y);
+    }
+  }
+
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(translate.x, translate.y);
+    drawNode(nodes)
+    const path = searchPolyline(nodes[0], nodes[1])
+    drawEdge(path)
+    ctx.stroke();
+    ctx.restore();
+  }
+  draw()
+
+
+</script>
+</body>
+</html>

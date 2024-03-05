@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_appName__",
+  "version": "1.0.1",
+  "description": "__MSG_appDescription__",
+  "icons": {
+    "16": "images/logo.png",
+    "32": "images/logo.png",
+    "48": "images/logo.png",
+    "128": "images/logo.png"
+  },
+  "permissions": [
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://sz.jd.com/octopusweb/sz/view/industrySearch/keywordRanks.html"],
+      "js": ["js/jquery-3.6.0.min.js","js/content.js"],
+      "css": ["css/content.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "default_locale": "zh_CN"
+}

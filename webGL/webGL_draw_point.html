@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <script src="https://cdn.jsdelivr.net/npm/gl-matrix@3.0.0/gl-matrix.js"></script>
+  <script>
+    window.onload = init;
+    const mat4 = glMatrix.mat4;
+    let porjMat4 = mat4.create();
+    const vsSource = `
+          attribute vec4 a_position;
+          uniform mat4 proj;
+
+          void main() {
+            gl_Position = proj * a_position;
+            gl_PointSize = 50.0;
+          }
+        `
+
+    const fsSource = `
+        void main() {
+          gl_FragColor = vec4(0,0,1.0,1.0);
+        }
+       `
+     function init() {
+       initWebGL();
+       initShader();
+       initBuffer();
+       draw();
+     }
+
+    let glCtx;
+     function initWebGL(){
+        let cvs = document.getElementById('glcanvas');
+       glCtx = cvs.getContext('webgl');
+       glCtx.viewport(0, 0, cvs.width, cvs.height);
+       mat4.ortho(porjMat4,0,cvs.width,cvs.height,0, -1,1);
+     }
+
+    let program;
+     function initShader(){
+       const vsShader = glCtx.createShader(glCtx.VERTEX_SHADER);
+       const fsShader = glCtx.createShader(glCtx.FRAGMENT_SHADER);
+       glCtx.shaderSource(vsShader,vsSource);
+       glCtx.shaderSource(fsShader,fsSource);
+
+       glCtx.compileShader(vsShader);
+       glCtx.compileShader(fsShader);
+
+        program = glCtx.createProgram();
+       glCtx.attachShader(program,vsShader);
+       glCtx.attachShader(program,fsShader);
+
+       glCtx.linkProgram(program);
+       glCtx.useProgram(program);
+     }
+
+     function initBuffer(){
+      let pointPosition = new Float32Array([400.0, 200.0, 0.0, 1.0]);
+      let aPosition = glCtx.getAttribLocation(program, "a_position");
+       glCtx.vertexAttrib4fv(aPosition,pointPosition);
+      let uniProj = glCtx.getUniformLocation(program, 'proj');
+       glCtx.uniformMatrix4fv(uniProj,false,porjMat4);
+     }
+
+     function draw(){
+       glCtx.clearColor(0.0, 0.0, 0.0, 1.0);
+       glCtx.clear(glCtx.COLOR_BUFFER_BIT);
+       glCtx.drawArrays(glCtx.POINTS, 0, 1);
+     }
+  </script>
+</head>
+<body>
+<canvas id="glcanvas" width="640" height="480">
+  你的浏览器似乎不支持或者禁用了HTML5 <code>&lt;canvas&gt;</code> 元素.
+</canvas>
+</body>
+</html>

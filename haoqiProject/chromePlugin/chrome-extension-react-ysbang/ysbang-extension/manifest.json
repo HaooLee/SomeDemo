@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "药师帮采购插件",
+  "version": "2.0.0",
+  "icons": {
+    "16": "images/logo.png",
+    "32": "images/logo.png",
+    "48": "images/logo.png",
+    "128": "images/logo.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://dian.ysbang.cn/*"
+      ],
+      "js": [
+        "src/content.jsx"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

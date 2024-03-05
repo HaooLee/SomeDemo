@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+      #cvs {
+          background-color: khaki;
+      }
+
+  </style>
+
+  <title ></title>
+</head>
+
+<body id="test">
+<canvas id="cvs" width="500" height="500"></canvas>
+<script type="text/javascript">
+  drawShape()
+  function drawShape() {
+    var canvas = document.getElementById('cvs');
+
+    var ctx = canvas.getContext("2d");
+
+
+    ctx.translate(10, 110); //转换坐标原点
+    ctx.strokeStyle = '#000000';//设定线条颜色  预设为 黑色
+    ctx.lineWidth = 0.5;//设定线条宽度  预设为 1
+    ctx.lineCap = 'round'; //设定线头格式 square / round / butt  默认值为square
+
+    ctx.beginPath();
+    //画一条水平的线
+    ctx.moveTo(-20, 0);//移到那一个坐标点 (X,Y)
+    ctx.lineTo(440, 0);//从x点到y点
+    //画一条垂直的线
+    ctx.moveTo(0, -220);
+    ctx.lineTo(0, 220);
+    ctx.closePath(); //关闭绘制路径
+    ctx.stroke();//绘制边线
+
+    //画出多条虚线
+    ctx.setLineDash([2, 6]);
+    ctx.moveTo(-20, -200);//上虚线
+    ctx.lineTo(440, -200);
+
+    ctx.moveTo(-20, 200);//下虚线
+    ctx.lineTo(440, 200);
+
+    ctx.moveTo(200, -220);//中虚线
+    ctx.lineTo(200, 220);
+
+    ctx.moveTo(400, -220);//后虚线
+    ctx.lineTo(400, 220);
+    ctx.closePath();
+    ctx.stroke();//绘制边线
+
+    //设定坐标文字
+    ctx.font = "8pt Arial";
+    var fontOffset = 10;
+    ctx.fillText(" 0", 0, fontOffset);
+    ctx.fillText(" π", 200, fontOffset);
+    ctx.fillText(" 2π", 400, fontOffset);
+    ctx.fillText(" +1", 0, -200 + fontOffset);
+    ctx.fillText(" -1", 0, +200 + fontOffset);
+
+
+    //绘制曲线
+    ctx.beginPath();
+    ctx.lineWidth = 1;       //设定线条宽度，预设为1
+    ctx.setLineDash([1,2]);      //设置线条为 虚线
+    ctx.lineCap = 'round';     //设定线头格式
+    ctx.moveTo(0, 0);
+
+    for (var i = 0; i < 200; i++) {
+      ctx.lineTo(i, Math.sin( i/ 50 *( Math.PI/2)) * (-100));
+    }
+
+    ctx.stroke();
+    ctx.closePath();
+  }
+
+</script>
+</body>
+
+</html>

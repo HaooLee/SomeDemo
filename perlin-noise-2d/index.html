@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+      #canvas {
+          width: 1000px;
+          height: 600px;
+          outline: 1px solid gold;
+      }
+  </style>
+</head>
+<body>
+<canvas id='canvas' width='1000' height='600'></canvas>
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const vertexNumH = 21;
+  const vertexNumV = 21;
+
+
+  const vertexes = getNoise(vertexNumH, vertexNumV);
+  // const noise = vertexes.reduce( function(a,i,idx){
+  //   if(idx == vertexes.length - 1){
+  //     return a
+  //   }
+  //   return a.concat(getInterpolation(i,vertexes[idx + 1], 1000 / (vertexNum - 1)))
+  // }, [],)
+  console.log(vertexes);
+
+  const imageData = ctx.createImageData(1000, 600);
+  const noiseData = imageData.data;
+
+  const pointNumH = 1000 / (vertexNumH - 1)
+  const pointNumV = 600 / (vertexNumH - 1 )
+
+  for (let i = 0; i < noiseData.length; i += 4) {
+    const h = i % (1000 * 4) / 4
+    const v = Math.floor( i / (1000 * 4))
+      const indexX = Math.floor(h / pointNumH)
+      const indexY = Math.floor(v / pointNumV)
+      const val = getPointNoiseData(indexX,indexY,vertexes,h % pointNumH / pointNumH,v % pointNumV / pointNumV) ;
+      noiseData[i] = val
+      noiseData[i + 1] = val
+      noiseData[i + 2] = val
+      noiseData[i + 3] = 255;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  function getPointNoiseData(x,y,vertexes,numXw,numYw){
+    const interX = lerp(vertexes[y][x],vertexes[y][x + 1],twist(numXw))
+    const interY = lerp(vertexes[y+1][x],vertexes[y + 1][x + 1],twist(numXw))
+    return lerp(interX,interY, twist(numYw))
+  }
+
+  function getRandInt(min, max) {
+    return Math.round(Math.random() * max - min);
+  }
+
+  function getNoise(num_h, num_v) {
+    return new Array(num_v).fill().map(() => new Array(num_h).fill().map(() => getRandInt(0, 255)));
+  }
+
+  function lerp(x, x1, w) {
+    return x * (1 - w) + x1 * w;
+  }
+
+  function twist(t) {
+    // return x**2 * (3 - 2 * x)
+    return 3 * t ** 2 - 2 * t ** 3;
+  }
+
+  function twistNew(t) {
+    // return x**2 * (3 - 2 * x)
+    return (6 * t ** 5) - (15 * t ** 4) + (10 * t ** 3);
+  }
+
+</script>
+</body>
+</html>

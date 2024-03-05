@@ -1,0 +1,231 @@
+<html>
+<head lang='zh'>
+  <meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width'>
+  <meta charset='UTF-8'>
+  <title></title>
+  <style>
+      @font-face {
+          font-family: shendu;
+          src: url('./font.ttf');
+      }
+
+      .container{
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 0;
+      }
+      .button{
+          position: absolute;
+          top: 100px;
+          left: 200px;
+          width: 400px;
+          height: 100px;
+          font-size: 35px;
+          text-shadow: 0 0 25px orange;
+          letter-spacing: -4px;
+          color: orange;
+          transform-origin: left top;
+          transform: rotate(11deg);
+      }
+
+      .button span {
+          font-family: shendu;
+
+          display: inline-block;
+          transition: all .5s linear;
+          animation: shake 10s ease-in-out infinite ;
+      }
+
+      .button:hover span{
+          animation: _normal 2s ease-in-out  ;
+      }
+
+      @keyframes _normal{
+          100%{
+              transform: translate(0,0) rotate(0) scale(1);
+          }
+      }
+
+      @keyframes shake {
+          2% {
+              transform: translate(3.5px, 1.5px) rotate(-0.5deg)
+          }
+          4% {
+              transform: translate(3.5px, 0.5px) rotate(-0.5deg)
+          }
+          6% {
+              transform: translate(3.5px, 0.5px) rotate(0.5deg)
+          }
+          8% {
+              transform: translate(3.5px, 3.5px) rotate(1.5deg)
+          }
+          10% {
+              transform: translate(1.5px, -1.5px) rotate(-0.5deg)
+          }
+          12% {
+              transform: translate(-1.5px, 0.5px) rotate(0.5deg)
+          }
+          14% {
+              transform: translate(0.5px, 1.5px) rotate(-0.5deg)
+          }
+          16% {
+              transform: translate(-1.5px, 0.5px) rotate(0.5deg)
+          }
+          18% {
+              transform: translate(1.5px, -1.5px) rotate(0.5deg)
+          }
+          20% {
+              transform: translate(3.5px, 1.5px) rotate(-0.5deg)
+          }
+          22% {
+              transform: translate(0.5px, -1.5px) rotate(1.5deg)
+          }
+          24% {
+              transform: translate(0.5px, -0.5px) rotate(-0.5deg)
+          }
+          26% {
+              transform: translate(0.5px, -1.5px) rotate(1.5deg)
+          }
+          28% {
+              transform: translate(0.5px, 0.5px) rotate(0.5deg)
+          }
+          30% {
+              transform: translate(3.5px, 0.5px) rotate(0.5deg)
+          }
+          32% {
+              transform: translate(-0.5px, 0.5px) rotate(0.5deg)
+          }
+          34% {
+              transform: translate(3.5px, 0.5px) rotate(-0.5deg)
+          }
+          36% {
+              transform: translate(0.5px, 3.5px) rotate(0.5deg)
+          }
+          38% {
+              transform: translate(-0.5px, 0.5px) rotate(-0.5deg)
+          }
+          40% {
+              transform: translate(-1.5px, 1.5px) rotate(-0.5deg)
+          }
+          42% {
+              transform: translate(1.5px, 3.5px) rotate(-0.5deg)
+          }
+          44% {
+              transform: translate(-0.5px, 0.5px) rotate(-0.5deg)
+          }
+          46% {
+              transform: translate(3.5px, 1.5px) rotate(-0.5deg)
+          }
+          48% {
+              transform: translate(-1.5px, 3.5px) rotate(1.5deg)
+          }
+          50% {
+              transform: translate(-0.5px, -1.5px) rotate(-0.5deg)
+          }
+          52% {
+              transform: translate(-1.5px, 1.5px) rotate(1.5deg)
+          }
+          54% {
+              transform: translate(-1.5px, -1.5px) rotate(-0.5deg)
+          }
+          56% {
+              transform: translate(3.5px, 1.5px) rotate(0.5deg)
+          }
+          58% {
+              transform: translate(-1.5px, -1.5px) rotate(0.5deg)
+          }
+          60% {
+              transform: translate(1.5px, 0.5px) rotate(0.5deg)
+          }
+          62% {
+              transform: translate(-0.5px, -1.5px) rotate(1.5deg)
+          }
+          64% {
+              transform: translate(0.5px, 1.5px) rotate(-0.5deg)
+          }
+          66% {
+              transform: translate(-0.5px, 3.5px) rotate(0.5deg)
+          }
+          68% {
+              transform: translate(3.5px, 3.5px) rotate(1.5deg)
+          }
+          70% {
+              transform: translate(1.5px, -1.5px) rotate(0.5deg)
+          }
+          72% {
+              transform: translate(0.5px, 3.5px) rotate(-0.5deg)
+          }
+          74% {
+              transform: translate(0.5px, -1.5px) rotate(1.5deg)
+          }
+          76% {
+              transform: translate(-0.5px, 0.5px) rotate(0.5deg)
+          }
+          78% {
+              transform: translate(1.5px, -0.5px) rotate(0.5deg)
+          }
+          80% {
+              transform: translate(-0.5px, 3.5px) rotate(-0.5deg)
+          }
+          82% {
+              transform: translate(-1.5px, 0.5px) rotate(1.5deg)
+          }
+          84% {
+              transform: translate(-1.5px, 3.5px) rotate(-0.5deg)
+          }
+          86% {
+              transform: translate(1.5px, -0.5px) rotate(0.5deg)
+          }
+          88% {
+              transform: translate(-1.5px, 0.5px) rotate(0.5deg)
+          }
+          90% {
+              transform: translate(0.5px, 0.5px) rotate(0.5deg)
+          }
+          92% {
+              transform: translate(0.5px, -1.5px) rotate(-0.5deg)
+          }
+          94% {
+              transform: translate(0.5px, 0.5px) rotate(-0.5deg)
+          }
+          96% {
+              transform: translate(3.5px, 3.5px) rotate(1.5deg)
+          }
+          98% {
+              transform: translate(1.5px, 3.5px) rotate(0.5deg)
+          }
+          0%, 100% {
+              transform: translate(0, 0) rotate(0)
+          }
+      }
+
+  </style>
+</head>
+<body style='margin: 0; padding: 0;'>
+<div class='container'>
+  <div class='button'>
+    <span>继</span>
+    <span>续</span>
+    <span>嚼</span>
+    <span>狗</span>
+    <span>尾</span>
+    <span>草</span>
+  </div>
+</div>
+<script>
+  function getRandom(min, max) {
+    return Math.random() * (max - min + 1) + min;
+  }
+
+const spans = document.querySelectorAll('.button span')
+spans.forEach((e, i)=>{
+  e.style.animationDelay = i * 100 + 'ms'
+  // e.style.transform = `scale(${getRandom(0.6,1.1)})`
+  // e.style.fontSize = `${35 * getRandom(0.5,1.1)}px`
+})
+</script>
+
+</body>
+</html>

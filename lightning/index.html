@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+    #cvs{
+        display: block;
+        width: 700px;
+        height: 500px;
+        border: 1px solid pink;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cvs"></canvas>
+  <script type='module'>
+    // import { Vector2 } from './vec2.js'
+    // console.log(new Vector2(100, 30))
+
+    const cvs = document.getElementById('cvs');
+    cvs.width = 700;
+    cvs.height = 500;
+    const ctx = cvs.getContext('2d');
+    const translate = [0,0]
+    ctx.translate(0.5, 0.5);
+    let startPoint = {x:150,y:150}
+    let endPoint = {x:550,y:450}
+
+    draw()
+
+    bindEvents(cvs)
+    function bindEvents(dom) {
+      // 绑定触摸事件
+      let device = (/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase()));
+      let clickEvtName = device ? 'touchstart' : 'mousedown';
+      let moveEvtName = device ? 'touchmove' : 'mousemove';
+      let isMouseDown = false;
+      if (!device) {
+        document.addEventListener('mouseup', function(e) {
+          isMouseDown = false;
+          // console.log(getTransparentPercent(context, context.canvas.width,context.canvas.height));
+        }, false);
+      }
+      dom.addEventListener(clickEvtName, function(e) {
+        isMouseDown = true;
+        let docEle = document.documentElement;
+        let x = (device ? e.touches[0].clientX : e.clientX) - docEle.scrollLeft - docEle.clientLeft;
+        let y = (device ? e.touches[0].clientY : e.clientY) - docEle.scrollTop - docEle.clientTop;
+        eventHandle({x,y})
+        e.preventDefault();
+      }, false);
+
+      dom.addEventListener(moveEvtName, function(e) {
+        if (!device && !isMouseDown) {
+          return false;
+        }
+        let docEle = document.documentElement;
+        let x = (device ? e.touches[0].clientX : e.clientX) - docEle.scrollLeft - docEle.clientLeft;
+        let y = (device ? e.touches[0].clientY : e.clientY) -  docEle.scrollTop - docEle.clientTop;
+        eventHandle({x,y})
+        e.preventDefault();
+      }, false);
+    }
+
+    function eventHandle(point){
+      endPoint = point
+    }
+
+    function createLightning(LightningPos, p){
+      let path = new Path2D(p)
+      let iterations = LightningPos || [startPoint,endPoint]
+      for (let i = 0; i < 8; i++) {
+        let newIterations = [iterations[0]]
+        for (let j = 1; j < iterations.length; j++) {
+          newIterations.push(getRandMidpoint(iterations[j - 1], iterations[j], 100 / (i * i + 1)))
+          newIterations.push(iterations[j])
+        }
+        iterations = newIterations.concat([])
+      }
+      path.moveTo(iterations[0].x, iterations[0].y);
+      for (let i = 1; i < iterations.length; i++) {
+        path.lineTo(iterations[i].x, iterations[i].y);
+      }
+
+      if(Math.random() > 0.7){
+        path.addPath(createLightning([startPoint,getRandPoint(startPoint,endPoint,100)]))
+      }
+
+      return path
+    }
+
+    function draw() {
+      ctx.clearRect(0,0,cvs.width,cvs.height)
+      ctx.fillRect(0,0,cvs.width, cvs.height)
+      ctx.save()
+      ctx.lineWidth = 3;
+      // ctx.strokeStyle = '#ecd8ff';
+      ctx.strokeStyle = '#c970ff';
+      ctx.filter = 'blur(5px)'
+      ctx.stroke(createLightning())
+      ctx.restore()
+      ctx.save()
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke(createLightning())
+      ctx.restore()
+      requestAnimationFrame(draw)
+    }
+
+    function getRandMidpoint(pa, pb, range) {
+      let a = Math.atan2(pb.y - pa.y, pb.x - pa.x) + Math.PI / 2;
+      let half = { y: (pb.y - pa.y) / 2 + pa.y, x: (pb.x - pa.x) / 2 + pa.x }
+      let offset = Math.random() * (range / 3) - (range / 6)
+      let res = {
+        x: Math.cos(a) * offset + half.x,
+        y: Math.sin(a) * offset + half.y
+      }
+      return res
+    }
+
+    function getRandPoint(pa, pb, range) {
+      let a = Math.atan2(pb.y - pa.y, pb.x - pa.x) + Math.PI / 2;
+      let half = { y: (pb.y - pa.y) * Math.random() + pa.y, x: (pb.x - pa.x)  * Math.random() + pa.x }
+      let offset = Math.random() * (range / 3) - (range / 6)
+      let res = {
+        x: Math.cos(a) * offset + half.x,
+        y: Math.sin(a) * offset + half.y
+      }
+      return res
+    }
+  </script>
+</body>
+</html>

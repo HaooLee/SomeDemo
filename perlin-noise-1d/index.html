@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+    #canvas{
+        width: 1000px;
+        height: 600px;
+        outline: 1px solid gold;
+    }
+  </style>
+</head>
+<body>
+<canvas id='canvas' width='1000' height='600'></canvas>
+<script>
+  const canvas = document.getElementById('canvas')
+  const ctx = canvas.getContext('2d')
+  const vertexNum = 20
+
+
+  const vertexes = getNoise(vertexNum)
+  const noise = vertexes.reduce( function(a,i,idx){
+    if(idx == vertexes.length - 1){
+      return a
+    }
+    return a.concat(getInterpolation(i,vertexes[idx + 1], 1000 / (vertexNum - 1)))
+  }, [],)
+  // console.log(noise)
+
+  ctx.translate(0,300)
+  ctx.beginPath()
+  noise.forEach((i,idx)=>{
+    ctx.lineTo(idx,i)
+  })
+  ctx.stroke()
+
+
+  function getRandInt(min,max){
+    return Math.round(Math.random() * max - min)
+  }
+
+  function getNoise(num){
+    return new Array(num).fill().map(()=>getRandInt(0,255))
+  }
+
+  function getInterpolation(p1,p2,num){
+    const res = []
+    for(let _x = 0; _x < num; _x++){
+      const x = _x/num
+      const val = lerp(p1,p2,twistNew(x))
+      res.push(val)
+    }
+    return res
+  }
+
+  function lerp(x, x1, w){
+    return x * (1 - w) + x1 * w
+  }
+
+  function twist(t){
+    // return x**2 * (3 - 2 * x)
+    return 3 * t ** 2 - 2 * t ** 3
+  }
+
+  function twistNew(t){
+    // return x**2 * (3 - 2 * x)
+    return (6 * t ** 5) - (15 * t ** 4) + (10 * t ** 3)
+  }
+
+</script>
+</body>
+</html>

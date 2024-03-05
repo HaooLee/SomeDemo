@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>流程图</title>
+  <style>
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+<div id="canvas-container">
+  <canvas id="canvas" width="40000" height="5000"></canvas>
+</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const nodeWidth = 150;
+  const nodeHeight = 50;
+  const nodeGap = 50;
+
+  function drawNode(x, y, text) {
+    // 绘制矩形节点
+    ctx.fillStyle = 'lightblue';
+    ctx.fillRect(x, y, nodeWidth, nodeHeight);
+
+    // 绘制文本
+    ctx.fillStyle = 'black';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + nodeWidth / 2, y + nodeHeight / 2);
+  }
+
+  const DrawNodes= [];
+
+  function drawFlowChart(data, list, x, y) {
+    if (DrawNodes.includes(data.id)) {
+      return;
+    }
+    DrawNodes.push(data.id);
+    drawNode(x, y, data.id);
+
+    if (data.next) {
+        data.next.forEach(({id}, index) => {
+            const nextData = list.find(item => item.id === id);
+
+            drawFlowChart(nextData, list, x + nodeWidth + nodeGap, y + (nodeHeight + nodeGap) * index);
+        });
+    }
+  }
+
+  // 设置 Canvas 的实际大小为容器的大小
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  fetch('./flow.json')
+    .then(res => res.json())
+    .then(data => {
+      drawFlowChart(data[0],data, 50, 50);
+    });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{
+	"manifest_version": 2,
+	"name": "获芸订单管理系统增强组件",
+	"version": "1.0.2",
+	"icons": {
+		"16": "icon/icon.png",
+		"48": "icon/icon.png",
+		"128": "icon/icon.png"
+	},
+	"background": {
+		"persistent": true,
+		"page": "app/background/background.html"
+	},
+	"incognito": "split",
+	"offline_enabled" : true,
+	"devtools_page" : "app/devtools/devtools.html",
+	"browser_action": {
+		"default_icon": "icon/icon.png",
+		"default_title": "获芸订单管理插件 - antdv",
+		"default_popup": "app/popup/popup.html"
+	},
+	"content_security_policy": "script-src 'self' 'unsafe-eval';object-src 'self';",
+	"content_scripts": [
+		{
+			"matches": [
+				"<all_urls>"
+			],
+			"css": [
+				"lib/animate/animate.min.css"
+			],
+			"js": [
+				"lib/vue/vue3.0.js",
+				"lib/axios/axios.js",
+				"lib/clipboard/vue-clipboard.js",
+				"lib/dayjs/dayjs.min.js",
+				"lib/dayjs/plugin/customParseFormat.js",
+				"lib/dayjs/plugin/weekday.js",
+				"lib/dayjs/plugin/localeData.js",
+				"lib/dayjs/plugin/weekOfYear.js",
+				"lib/dayjs/plugin/weekYear.js",
+				"lib/dayjs/plugin/advancedFormat.js",
+				"lib/antdesign/antd.js",
+				"lib/naiveui/index.js",
+				"config/config.js",
+				"app/main/main.js"
+			],
+			"run_at": "document_end",
+			"all_frames": true
+		}
+	],
+	"web_accessible_resources": [
+		"lib/*",
+		"fonts/*",
+		"config/*",
+		"icon/*",
+		"app/*"
+	],
+	"permissions": [
+		"management",
+		"contextMenus",
+		"tabs",
+		"cookies",
+		"<all_urls>",
+		"notifications",
+		"webRequest",
+		"webRequestBlocking",
+		"downloads",
+		"storage",
+		"proxy",
+		"system.cpu",
+		"system.memory",
+		"system.storage",
+		"system.display",
+		"identity",
+		"clipboardWrite",
+		"http://*/*",
+		"https://*/*"
+	],
+	"homepage_url": "https://software.hihuoyun.com",
+	"default_locale": "zh_CN",
+	"update_url": "https://www.hihuoyun.com/chromeUpdate.xml"
+}

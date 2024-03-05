@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC demo</title>
+</head>
+<body>
+<!-- 定义本地视频窗口 -->
+<video id="local-video" autoplay muted></video>
+<!-- 定义远程视频窗口 -->
+<video id="remote-video" autoplay></video>
+
+<script>
+  // 获取本地音视频流
+  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+      // 将本地视频流显示在 local-video 元素上
+      const localVideo = document.querySelector('#local-video');
+      localVideo.srcObject = stream;
+
+      // 创建一个 PeerConnection 对象
+      const peerConnection = new RTCPeerConnection();
+
+      // 将本地流添加到 PeerConnection 中
+      stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+      // 当 PeerConnection 收到远程流时，将其显示在 remote-video 元素上
+      peerConnection.ontrack = event => {
+        const remoteVideo = document.querySelector('#remote-video');
+        remoteVideo.srcObject = event.streams[0];
+      };
+
+      // 创建一个 offer
+      peerConnection.createOffer()
+        .then(offer => peerConnection.setLocalDescription(offer))
+        .catch(error => console.error(error));
+
+      // 你需要与远程 peer 交换 offer，并获得其 answer，
+      // 用于完成 PeerConnection 的设置。
+      // 这不在本 demo 范围内，但是有很多方法可以实现，
+      // 例如使用信令服务器或 WebSockets。
+    })
+    .catch(error => console.error(error));
+</script>
+</body>
+</html>

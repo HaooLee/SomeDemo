@@ -1,0 +1,23 @@
+.App{
+  position: fixed;
+  width: 800px ;
+  height: 600px;
+  top: 50px;
+  right: 100px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+    z-index: 9999999;
+
+  &.hide{
+    display: none;
+  }
+
+  .download-log{
+    width: 100%;
+    height: 480px;
+    overflow-y: auto;
+    margin: 10px 0;
+    background: rgba(148, 148, 148, 0.13);
+  }
+}

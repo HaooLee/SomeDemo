@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+      body{
+          background: black;
+      }
+    .box{
+        margin-left: 300px;
+        margin-top: 300px;
+        width: 200px;
+        height: 200px;
+        background: url("./ripple-bg.png") center no-repeat;
+        -webkit-mask-image: radial-gradient(closest-side at center, black, black 40%, transparent 75%, transparent 75%);
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: 40% 40%;
+        /*transition:mask-size 1s linear,-webkit-mask-size .2s linear ;*/
+        animation: ripple .3s linear forwards,ripple-cancel .3s .5s linear forwards;
+    }
+
+    @keyframes ripple {
+        100%{
+            -webkit-mask-size: 60% 60%;
+        }
+    }
+      @keyframes ripple-cancel {
+          100%{
+              opacity: 0;
+          }
+      }
+  </style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

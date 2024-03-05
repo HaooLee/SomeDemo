@@ -1,0 +1,36 @@
+<html>
+<head lang='zh'>
+  <meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width'>
+  <meta charset='UTF-8'>
+  <title></title>
+  <base target='_blank'>
+</head>
+<body style='margin: 0; padding: 0;'>
+<div id='box' style='width: 100%; min-height: 480px; height: 900px;' data-image-src='./glass.png'
+     class='clean-out'>
+</div>
+
+
+<style>
+    .clean-out {
+        position: relative;
+        padding: 0;
+    }
+
+    .clean-out,.canvas, .image{
+        position: absolute;
+        display: block;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+
+    .clean-out {
+        z-index: 2;
+    }
+</style>
+<script src='./index.bak.js'></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+{
+    "editor": {
+        "group_id": 0,
+        "project_id": 708,
+        "chapters": [
+            {
+                "chapter_id": "chapter_1699436792358",
+                "name": "第一章",
+                "is_start": true,
+                "version": 0
+            }
+        ],
+        "branches": [
+            {
+                "branch_id": "node_1699437313391",
+                "chapter_id": "chapter_1699436792358",
+                "vid": "",
+                "pid": 3,
+                "pos_x": 180,
+                "pos_y": 0,
+                "is_start": false,
+                "next": [],
+                "nodeName": "1",
+                "subtitles": [],
+                "version": 2,
+                "replaceInfo": {}
+            },
+            {
+                "branch_id": "node_1699437315207",
+                "chapter_id": "chapter_1699436792358",
+                "vid": "",
+                "pid": 1,
+                "pos_x": 180,
+                "pos_y": 160,
+                "is_start": false,
+                "next": [],
+                "nodeName": "3",
+                "subtitles": [],
+                "version": 2,
+                "replaceInfo": {}
+            },
+            {
+                "branch_id": "node_1699437317341",
+                "chapter_id": "chapter_1699436792358",
+                "vid": "",
+                "pid": 4,
+                "pos_x": 180,
+                "pos_y": 320,
+                "is_start": false,
+                "next": [],
+                "nodeName": "2",
+                "subtitles": [],
+                "version": 3,
+                "replaceInfo": {}
+            },
+            {
+                "branch_id": "node_1699437295887",
+                "chapter_id": "chapter_1699436792358",
+                "vid": "",
+                "pid": 2,
+                "pos_x": 0,
+                "pos_y": 160,
+                "is_start": true,
+                "next": [
+                    {
+                        "id": "next_node_1699437295887_node_1699437313391_922707",
+                        "branch_id": "node_1699437313391",
+                        "active": true
+                    },
+                    {
+                        "id": "next_node_1699437295887_node_1699437317341_5653",
+                        "branch_id": "node_1699437317341",
+                        "active": false
+                    }
+                ],
+                "nodeName": "0",
+                "subtitles": [],
+                "version": 8,
+                "replaceInfo": {
+                    "after": 8.38,
+                    "isNotLook": false
+                }
+            }
+        ],
+        "events": [
+            {
+                "event_id": "action_1699437381004",
+                "component_id": "",
+                "interaction_id": "point_1699437381004",
+                "mode": "action",
+                "category": "video",
+                "action": "play",
+                "params": {
+                    "branch_id": "20220712_180249.mp4",
+                    "jumpWay": "BEtime",
+                    "pid": 1,
+                    "position": "00:00.00"
+                },
+                "version": 1,
+                "conditionType": "",
+                "customCondition": ""
+            }
+        ],
+        "interactions": [
+            {
+                "id": "point_1699437381004",
+                "branch_id": "node_1699437295887",
+                "name": "播放视频",
+                "start_time": "00:00",
+                "position": "time",
+                "duration": 0,
+                "condition": "",
+                "hasDuration": false,
+                "hasCondition": false,
+                "isGlobal": false,
+                "version": 0,
+                "conditionType": "1",
+                "customCondition": "",
+                "mark": false,
+                "isDisabled": false
+            }
+        ],
+        "components": [],
+        "styles": [],
+        "global_cfg": null
+    }
+}

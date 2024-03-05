@@ -1,0 +1,1 @@
+zip -r myextension.zip *

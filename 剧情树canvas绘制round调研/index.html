@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+      #cvs {
+          display: block;
+          width: 1000px;
+          height: 600px;
+          margin: auto;
+          border: 1px solid hotpink;
+      }
+  </style>
+</head>
+<body>
+
+<canvas id='cvs'></canvas>
+
+<script>
+  const cvs = document.getElementById('cvs');
+  cvs.width = 1000;
+  cvs.height = 600;
+  const ctx = cvs.getContext('2d');
+  const translate = [0,0]
+  ctx.translate(0.5, 0.5);
+
+  cvs.addEventListener('click', (e) => {
+    point[0] = e.offsetX - translate[0];
+    point[1] = e.offsetY;
+  });
+
+  cvs.addEventListener('wheel',(e) =>{
+    translate[0] -= e.deltaX
+    e.preventDefault()
+  })
+
+  const point = [50, 50];
+
+  function render(time) {
+    // console.log(time)
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    ctx.save();
+    ctx.translate(...translate)
+    ctx.beginPath();
+    ctx.lineWidth = 5;
+    ctx.roundLineTo(30, 300, 300, 400, 30);
+    ctx.stroke();
+    ctx.roundLineTo(30, 300, 300, 200, 30);
+    ctx.roundLineTo(300, 200, 500, 150, 30, [5,5], 'v');
+    ctx.roundLineTo(500, 150, 700, 300, 30);
+    ctx.stroke();
+
+    ctx.roundLineTo(300, 400, point[0], point[1], 30, [5,5], 'v');
+    ctx.stroke();
+
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.drawImage(img, -translate[0], translate[1], cvs.width, cvs.height);
+    ctx.restore();
+    requestAnimationFrame(render);
+  }
+
+  const img = new Image();
+  img.src = './img/classroom-bg.png';
+  img.onload = () => {
+    render();
+  };
+
+  CanvasRenderingContext2D.prototype.roundLineTo = function(x, y, x1, y1, radius, style = 'solid', directionFirst = 'horizontal') {
+    // this.beginPath()
+    if (x > x1) {
+      [x, x1, y, y1] = [x1, x, y1, y];
+      if(directionFirst == 'h' || directionFirst == 'horizontal'){
+        directionFirst = 'v'
+      }else {
+        directionFirst = 'h'
+      }
+    }
+    if(style == 'solid'){
+      this.setLineDash([])
+    }else {
+      this.setLineDash(style)
+    }
+
+    this.moveTo(x, y);
+    // 如果两点连线是垂直或者水平则直接连线
+    if (x === x1 || y === y1) {
+      this.lineTo(x1, y1);
+    } else {
+      if (Math.abs(x - x1) < radius) {
+        radius = Math.abs((x - x1) / 2);
+      } else if (Math.abs(y - y1) < radius) {
+        radius = Math.abs((y - y1) / 2);
+      }
+
+      let anticlockwise = true;
+      let startAngle = Math.PI / 180 * 90;
+      let endAngle = 0;
+
+      if (directionFirst == 'h' || directionFirst == 'horizontal') {
+        this.lineTo(x1 - radius, y);
+        // 映射迪卡尔坐标 第一象限
+        if ((x < x1) && y > y1) {
+          anticlockwise = true;
+          startAngle = Math.PI / 180 * 90;
+          endAngle = 0;
+          // 映射迪卡尔坐标 第二象限
+        } else if ((x < x1 && y < y1)) {
+          anticlockwise = false;
+          startAngle = Math.PI / 180 * 270;
+          endAngle = 0;
+        }
+        this.arc(x1 - radius, anticlockwise ? (y - radius) : (y + radius), radius, startAngle, endAngle, anticlockwise);
+        this.lineTo(x1, y1);
+      } else if (directionFirst == 'v' || directionFirst == 'vertical') {
+        // 第三象限
+        if ((x < x1 && y < y1)) {
+          anticlockwise = true;
+          startAngle = Math.PI;
+          endAngle = Math.PI / 2;
+          // 第四象限
+        } else if ((x < x1 && y > y1)) {
+          anticlockwise = false;
+          startAngle = Math.PI;
+          endAngle = Math.PI / 180 * 270;
+        }
+        this.arc(x + radius, anticlockwise ? (y1 - radius) : (y1 + radius), radius, startAngle, endAngle, anticlockwise);
+        this.lineTo(x1, y1);
+      }
+    }
+  };
+</script>
+
+</body>
+</html>

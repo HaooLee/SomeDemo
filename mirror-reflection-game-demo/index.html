@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'UI Sans', sans-serif;
+        }
+
+        #canvas {
+            width: 800px;
+            height: 600px;
+            display: block;
+            border: 1px solid #00acc1;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false">
+<canvas id="canvas" width="800" height="600"></canvas>
+<script src="./Vector2.js" type="module"></script>
+<script type="module">
+  import {Vector2} from './Vector2.js';
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(1, -1);
+
+  // 定义光线  懒得写在单独js文件里了 翻来翻去麻烦
+  class Ray {
+    constructor(position, dir, color, isLight = true, id = 1,reflectionCount) {
+      this.position = position || new Vector2(0, 0);
+      this.dir = dir || new Vector2(1, 0);
+      this.color = color || 'pink';
+      this.maxLength = 999999;
+      this.reflectionLimit = 100;
+      this.reflectionCount = isLight ? 0 : reflectionCount
+      this.intersections = [];
+      this.reflectionRay = null;
+      this.isLight = isLight;
+      this.id = id;
+    }
+
+    get end() {
+      if (this.intersections.length > 0) {
+        // 由于前面计算交点的时候已经对所有的交点从近到远排过序了 所以返回最近的那个交点
+        return this.intersections[0].intersection;
+
+      } else {
+        return this.position.clone().add(this.dir.clone().multiplyScalar(this.maxLength));
+      }
+    }
+
+    static getReflectionDir(dir, normal) {
+      return dir.clone().sub(normal.clone().multiplyScalar(2 * dir.dot(normal)));
+    }
+
+    setPosition(x, y) {
+      this.position.x = x;
+      this.position.y = y;
+    }
+
+    getMaxEnd() {
+      return this.position.clone().add(this.dir.clone().multiplyScalar(this.maxLength));
+    }
+
+    rotate(angle) {
+      this.dir.rotateAround(new Vector2(0, 0), angle);
+    }
+
+    rotateTo(angle) {
+      this.dir.rotateAround(new Vector2(0, 0), angle - this.dir.angle());
+    }
+
+    updateIntersection(mirrors) {
+      this.intersections = [];
+      this.reflectionRay = null;
+      mirrors.forEach(mirror => {
+        const intersection = this.getMirrorIntersection(mirror);
+        if (intersection) {
+          // console.log(`光线${this.id} 和 镜子${mirror.id}` ,'有交点',
+          //   `交点在${this.dir.clone().dot(mirror.normal) < 0 ? '正面':'背面'}`,
+          //   intersection, "光源距离交点",this.position.distanceTo(intersection));
+          this.intersections.push({
+            mirror,
+            intersection,
+            distance: this.position.distanceTo(intersection),
+            hasReflation: this.dir.clone().dot(mirror.normal) < 0
+          });
+        } else {
+          // console.log('没有交点');
+        }
+      });
+      if (this.intersections.length > 0) {
+        this.intersections.sort((a, b) => {
+          return a.distance - b.distance;
+        });
+        const firstIntersection = this.intersections[0];
+        if (firstIntersection.hasReflation && this.reflectionCount < this.reflectionLimit){
+          this.reflectionRay = new Ray(
+            firstIntersection.intersection,
+            Ray.getReflectionDir(this.dir, firstIntersection.mirror.normal),
+            this.color,
+            false,
+            this.id +1,
+            this.reflectionCount + 1
+          );
+          this.reflectionRay.updateIntersection(mirrors)
+        }
+      }
+
+    }
+
+
+    getMirrorIntersection(mirror) {
+      const a = mirror.a;
+      const b = mirror.b;
+      const c = this.position;
+      const d = this.getMaxEnd();
+
+      // const denominator = (b.y - a.y) * (d.x - c.x) - (a.x - b.x) * (c.y - d.y);
+      // // 分母等于0 代表平行或者共线
+      // if (denominator === 0) {
+      //   console.log('分母为0 平行活着共线')
+      //   return false;
+      // }
+      // // 计算这俩线段所在直线的交点
+      // const x = ( (b.x - a.x) * (d.x - c.x) * (c.y - a.y)
+      //   + (b.y - a.y) * (d.x - c.x) * a.x
+      //   - (d.y - c.y) * (b.x - a.x) * c.x ) / denominator ;
+      // const y = -( (b.y - a.y) * (d.y - c.y) * (c.x - a.x)
+      //   + (b.x - a.x) * (d.y - c.y) * a.y
+      //   - (d.x - c.x) * (b.y - a.y) * c.y ) / denominator;
+      // if (
+      //   (x - a.x) * (x - b.x) <= 0 &&
+      //   (y - a.y) * (y - b.y) <= 0 &&
+      //   (x - c.x) * (x - d.x) <= 0 &&
+      //   (y - c.y) * (y - d.y) <= 0
+      // ) {
+      //   return new Vector2(x,y);
+      // } else {
+      //   return null;
+      // }
+
+      // 这个算法性能更好 更简洁
+      // 三角形abc 面积的2倍 这里本质是向量在叉乘取模
+      const area_abc = (a.x - c.x) * (b.y - c.y) - (a.y - c.y) * (b.x - c.x);
+
+      // 三角形abd 面积的2倍
+      const area_abd = (a.x - d.x) * (b.y - d.y) - (a.y - d.y) * (b.x - d.x);
+
+      // 面积符号相同则两点在线段同侧,不相交 对点在线段上的情况,当作不相交处理;
+      if (area_abc * area_abd > -0.001) {
+        return false;
+      }
+
+      // 三角形cda 面积的2倍
+      const area_cda = (c.x - a.x) * (d.y - a.y) - (c.y - a.y) * (d.x - a.x);
+      // 三角形cdb 面积的2倍
+      // 不需要再用公式计算面积,而是通过已知的三个面积加减得出.
+      const area_cdb = area_cda + area_abc - area_abd;
+      if (area_cda * area_cdb >= 0) {
+        return false;
+      }
+      //计算交点坐标
+      const t = area_cda / (area_abd - area_abc);
+      const dx = t * (b.x - a.x);
+      const dy = t * (b.y - a.y);
+      return new Vector2(a.x + dx, a.y + dy);
+    }
+
+    getRenderPath() {
+      this.renderPath = new Path2D();
+      this.renderPath.moveTo(this.position.x, this.position.y);
+      this.renderPath.lineTo(this.end.x, this.end.y);
+      return this.renderPath;
+    }
+  }
+
+  // 定义镜子
+  class Mirror {
+    constructor(position, normal, width, color, id) {
+      // 镜子的中心点位置
+      this.position = position || new Vector2(0, 0);
+      // 镜子的法线默认朝上
+      this.normal = normal || new Vector2(0, 1);
+      this.width = width || 100;
+      this.height = 10;
+      this.color = color || 'green';
+      this.renderPath = new Path2D();
+      this.a = this._a;
+      this.b = this._b;
+      this.id = id || 1;
+      this.update();
+    }
+
+    update() {
+      this.a = this._a;
+      this.b = this._b;
+      this.renderPath = new Path2D();
+      this.renderPath.moveTo(this.a.x, this.a.y);
+      this.renderPath.lineTo(this.b.x, this.b.y);
+      this.renderPath.lineTo(this.b.x - this.normal.x * this.height, this.b.y - this.normal.y * this.height);
+      this.renderPath.lineTo(this.a.x - this.normal.x * this.height, this.a.y - this.normal.y * this.height);
+      this.renderPath.closePath();
+    }
+
+    // 通过position和normal计算出镜子的左右两个端点
+    get _a() {
+      return this.position.clone().add(this.normal.clone().rotateAround(new Vector2(0, 0), Math.PI / 2).multiplyScalar(this.width / 2));
+    }
+
+    get _b() {
+      return this.position.clone().add(this.normal.clone().rotateAround(new Vector2(0, 0), -Math.PI / 2).multiplyScalar(this.width / 2));
+    }
+
+    rotate(angle) {
+      this.normal.rotateAround(new Vector2(0, 0), angle);
+      this.update();
+    }
+
+    rotateTo(angle) {
+      this.normal.rotateAround(new Vector2(0, 0), angle - this.normal.angle());
+      this.update();
+    }
+
+    getRenderPath() {
+      return this.renderPath;
+    }
+  }
+
+  function drawRay(ray) {
+    ctx.save();
+    ctx.strokeStyle = ray.color || 'pink';
+    ctx.lineWidth = 5;
+    ctx.stroke(ray.getRenderPath());
+    ctx.restore();
+    if (ray.reflectionRay) {
+      drawRay(ray.reflectionRay);
+    }
+  }
+
+  function drawMirrors(mirrors) {
+    mirrors.forEach((mirror) => {
+      ctx.save();
+      ctx.fillStyle = mirror.color;
+      ctx.strokeStyle = mirror.color;
+      ctx.fill(mirror.getRenderPath());
+      ctx.restore();
+      // 用其他颜色画出镜子法线
+      ctx.save();
+      ctx.strokeStyle = 'blue';
+      ctx.beginPath();
+      ctx.moveTo(mirror.position.x, mirror.position.y);
+      ctx.lineTo(mirror.position.x + mirror.normal.x * 50, mirror.position.y + mirror.normal.y * 50);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function render(rays, mirrors) {
+    ctx.clearRect(-width / 2, -height / 2, width, height);
+    ctx.save();
+    rays.forEach(ray => {
+      // 每一帧绘制之前都去计算一下光线和镜子的交点
+      ray.updateIntersection(mirrors);
+      drawRay(ray);
+    });
+    drawMirrors(mirrors);
+    ctx.restore();
+    // 绘制虚线个坐标轴 方便观察
+    ctx.save();
+    ctx.strokeStyle = 'gray';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(-width / 2, 0);
+    ctx.lineTo(width / 2, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -height / 2);
+    ctx.lineTo(0, height / 2);
+    ctx.stroke();
+    ctx.restore();
+
+    requestAnimationFrame(() => {
+      render(rays, mirrors);
+    });
+  }
+
+
+  const ray = new Ray(new Vector2(-351, 100), new Vector2(1, 0), 'pink', true);
+  const mirror = new Mirror();
+  const mirror2 = new Mirror(new Vector2(20, 100), new Vector2(0, -1), 200, 'skyblue', 2);
+  const rays = [ray];
+  const mirrors = [mirror, mirror2];
+  let activeMirror = null;
+
+  canvas.addEventListener('mousedown', (e) => {
+    const touchedMirror = mirrors.find(mirror => {
+      return ctx.isPointInPath(mirror.getRenderPath(), e.offsetX, e.offsetY);
+    });
+    if (e.button === 2) {
+      ray.setPosition(e.offsetX - width / 2, height / 2 - e.offsetY);
+    } else if (touchedMirror) {
+      activeMirror = touchedMirror;
+      canvas.addEventListener('mousemove', onMirrorRotateMouseMove);
+    } else {
+      canvas.addEventListener('mousemove', onMouseMove);
+    }
+
+  });
+  canvas.addEventListener('mouseup', () => {
+    canvas.removeEventListener('mousemove', onMouseMove);
+    canvas.removeEventListener('mousemove', onMirrorRotateMouseMove);
+  });
+
+  function onMouseMove(e) {
+    ray.rotateTo(Math.atan2(height / 2 - e.offsetY - ray.position.y, e.offsetX - width / 2 - ray.position.x));
+  }
+
+  function onMirrorRotateMouseMove(e) {
+    activeMirror.rotateTo(Math.atan2(height / 2 - e.offsetY - activeMirror.position.y,
+      e.offsetX - width / 2 - activeMirror.position.x) - Math.PI / 2);
+  }
+
+  render(rays, mirrors);
+</script>
+</body>
+</html>

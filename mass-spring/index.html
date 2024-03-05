@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Title</title>
+  <style>
+      html,body{
+          padding: 0;
+          margin: 0;
+      }
+    #cvs{
+        display: block;
+        width: 700px;
+        height: 500px;
+        border: 1px solid pink;
+
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cvs"></canvas>
+  <script type='module'>
+    import { Vector2 } from './vec2.js'
+
+    const cvs = document.getElementById('cvs');
+    cvs.width = 700;
+    cvs.height = 500;
+    const ctx = cvs.getContext('2d');
+    const translate = [0,0]
+    ctx.translate(0.5, 0.5);
+
+    bindEvents(cvs)
+    function bindEvents(dom) {
+      // 绑定触摸事件
+      let device = (/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase()));
+      let clickEvtName = device ? 'touchstart' : 'mousedown';
+      let moveEvtName = device ? 'touchmove' : 'mousemove';
+      let isMouseDown = false;
+      if (!device) {
+        document.addEventListener('mouseup', function(e) {
+          isMouseDown = false;
+        }, false);
+      }
+      dom.addEventListener(clickEvtName, function(e) {
+        isMouseDown = true;
+        let docEle = document.documentElement;
+        let x = (device ? e.touches[0].clientX : e.clientX) - docEle.scrollLeft - docEle.clientLeft;
+        let y = (device ? e.touches[0].clientY : e.clientY) - docEle.scrollTop - docEle.clientTop;
+        addMass(x,y, e.button === 2)
+        e.preventDefault();
+
+      },  { passive:false });
+      dom.addEventListener('contextmenu',function(e){
+        e.preventDefault()
+      })
+      dom.addEventListener(moveEvtName, function(e) {
+        if (!device && !isMouseDown) {
+          return false;
+        }
+        let docEle = document.documentElement;
+        let x = (device ? e.touches[0].clientX : e.clientX) - docEle.scrollLeft - docEle.clientLeft;
+        let y = (device ? e.touches[0].clientY : e.clientY) -  docEle.scrollTop - docEle.clientTop;
+        // addMass(x,y,e.button === 2)
+        e.preventDefault();
+      }, {passive:false});
+    }
+
+    const masses = []
+
+    function addMass(x,y,MRB){
+      const mass = new Mass(new Vector2(x,y), 5, MRB,masses.length)
+      masses.forEach((m)=>{
+        // console.log(m.position.clone().sub(mass.position).length())
+        if(m.position.clone().sub(mass.position).length() < 100){
+          mass.connect(m, 70)
+        }
+      })
+      masses.push(mass)
+    }
+
+    class Mass{
+      constructor(position, mass, pinned, id) {
+        this.id = id
+        this.position = position
+        this.mass = mass
+        this.pinned = pinned
+        this.force = new Vector2(0,0)
+        this.velocity = new Vector2(0, 0)
+        this.connectedMasses = []
+      }
+
+      connect(m,springLen){
+        if(this.getIsConnect(m) || m === this){
+          return
+        }
+        this.connectedMasses.push({
+          target:m,
+          springLen
+        })
+        m.connect(this,springLen)
+      }
+      //
+      getIsConnect(m){
+        return !!this.connectedMasses.find(o=>o.target == m)
+      }
+
+      update(dt){
+        // 计算合力
+        this.force = new Vector2(0,0)
+        this.connectedMasses.forEach((mt)=>{
+          const f = this.position.clone().sub(mt.target.position)
+          // 力的大小
+          let l = f.length()
+          // 力的方向
+          const d = f.clone().normalize()
+          // 计算合力
+          this.force.clone.add(d.multiplyScalar(l / mt.springLen - 1).multiplyScalar(-10))
+          // 相对速度
+          const v = this.velocity.clone().sub(mt.target.velocity)
+          //
+          // this.force.add(d.clone().multiplyScalar(v.dot(d) * -100))
+        })
+
+        if(!this.pinned){
+          const g = new Vector2(0, 9.8)
+          // 速度加上 重力加速度*dt 为当前速度
+          this.velocity.add(g.multiplyScalar(dt).add(this.force))
+          // this.velocity.multiplyScalar(Math.exp( -dt * -100))
+        }
+
+        // V = S/t ==>  S = Vt
+        this.position.add(this.velocity.clone().multiplyScalar(dt))
+
+        // 简单边界碰撞
+        if(this.position.x < 0){
+          this.position.x  = 0
+        }
+        if(this.position.x > ctx.canvas.width){
+          this.position.x  = ctx.canvas.width
+        }
+        if(this.position.y < 0){
+          this.position.y = 0
+        }
+        if(this.position.y > ctx.canvas.height){
+          this.position.y = ctx.canvas.height
+        }
+        // console.log(this.position)
+      }
+    }
+    let t = Date.now()
+    draw()
+
+    function draw(){
+      ctx.clearRect(-1,-1,ctx.canvas.width, ctx.canvas.height)
+      const dt = (Date.now() - t) / 100
+      t = Date.now()
+      masses.forEach((m,i)=>{
+        const {x,y} = m.position
+        ctx.beginPath()
+        ctx.arc(x,y,4,0,Math.PI * 2,false)
+        if(m.pinned){
+          ctx.fillStyle = 'pink'
+        }else {
+          ctx.fillStyle = '#000'
+        }
+        ctx.fill()
+
+        m.connectedMasses.forEach(mt=>{
+          ctx.beginPath()
+          ctx.moveTo(x,y)
+          ctx.lineTo(mt.target.position.x, mt.target.position.y)
+          ctx.stroke()
+        })
+
+        m.update(0.01)
+        // for(let i = 0; i < 10; i++){
+        //   m.update(0.001)
+        // }
+      })
+
+      requestAnimationFrame(draw)
+    }
+
+
+  </script>
+</body>
+</html>
