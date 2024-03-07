@@ -9,16 +9,19 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import {Buffer} from "node:buffer";
+import { Buffer } from 'node:buffer';
 import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
-import { getHttpData }  from './getResponse'
-import {getYesterday235959Timestamp, getCurrentMonthFirstDayTimestamp, getDate} from '../utils/date'
-import {createExcel} from "../utils/createExcel";
-
+import { getHttpData } from './getResponse';
+import {
+  getYesterday235959Timestamp,
+  getCurrentMonthFirstDayTimestamp,
+  getDate,
+} from '../utils/date';
+import { createExcel } from '../utils/createExcel';
 
 class AppUpdater {
   constructor() {
@@ -30,18 +33,18 @@ class AppUpdater {
 
 export type Shop = {
   name: string;
-  expire ?: number | undefined;
-}
+  expire?: number | undefined;
+};
 
 let mainWindow: BrowserWindow | null = null;
 
 let isTaskRunning = false;
 
-const excelData:any[] = []
+const excelData: any[] = [];
 
 ipcMain.on('export-excel', async (event, arg) => {
   console.log(arg, 'export-excel');
-  const name = createExcel(excelData)
+  const name = createExcel(excelData);
   event.reply('export-excel', path.resolve(__dirname, name));
 });
 
@@ -53,51 +56,60 @@ ipcMain.on('open-window', async (event, arg) => {
 });
 
 ipcMain.on('delete-session', async (event, arg) => {
-  const id = Buffer.from(arg.shopName).toString('base64')
-  session.fromPartition(`persist:${id}`).clearStorageData()
+  const id = Buffer.from(arg.shopName).toString('base64');
+
+  session
+    .fromPartition(`persist:${id}`)
+    .clearStorageData()
     .then(() => event.reply('delete-session', 'success'))
-    .catch(error => event.reply('delete-session', 'error'))
-})
+    .catch(() => event.reply('delete-session', 'error'));
+});
 
 ipcMain.on('start-task', async (event, shopList) => {
   event.reply('start-task', 'pong');
   console.log(shopList, 'start-task');
   isTaskRunning = true;
-  runGetDataTask(shopList).then(() => {
-    console.log('任务结束')
-    isTaskRunning = false;
-    if (excelData.length > 0){
-      const name = createExcel(excelData)
-      mainWindow?.webContents.send('export-excel', path.resolve(__dirname, name));
-    }
-  }).finally(() => {
-    console.log('任务结束')
-    isTaskRunning = false;
-  })
-})
+  runGetDataTask(shopList)
+    .then(() => {
+      console.log('任务结束');
+      isTaskRunning = false;
+      if (excelData.length > 0) {
+        const name = createExcel(excelData);
+        mainWindow?.webContents.send(
+          'export-excel',
+          path.resolve(__dirname, name),
+        );
+      }
+    })
+    .finally(() => {
+      console.log('任务结束');
+      isTaskRunning = false;
+    });
+});
 
 ipcMain.on('stop-task', async (event, arg) => {
   console.log(arg, 'stop-task');
   isTaskRunning = false;
   event.reply('stop-task', 'pong');
-})
+});
 
-async function runGetDataTask(shopList:Shop[]) {
+async function runGetDataTask(shopList: Shop[]) {
   for (let i = 0; i < shopList.length; i++) {
-    if (!isTaskRunning) return
-    const rowData = await createSubWindow(shopList[i])
-    if (rowData){
-      excelData.push(rowData)
+    if (!isTaskRunning) return;
+    const rowData = await createSubWindow(shopList[i]);
+    if (rowData) {
+      excelData.push(rowData);
     }
   }
 }
 
-function createSubWindow (shop:Shop):Promise<any> {
-  const id = Buffer.from(shop.name).toString('base64')
-  const rowData= new Array(15).fill('-')
+function createSubWindow(shop: Shop): Promise<any> {
+  const id = Buffer.from(shop.name).toString('base64');
+  const rowData = new Array(15).fill('-');
 
-  console.log('id',`persist:${id}`)
-  if (!mainWindow)return Promise.reject('mainWindow is null')
+  console.log('id', `persist:${id}`);
+  // eslint-disable-next-line prefer-promise-reject-errors
+  if (!mainWindow) return Promise.reject('mainWindow is null');
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -112,49 +124,70 @@ function createSubWindow (shop:Shop):Promise<any> {
       contextIsolation: false,
       webSecurity: false,
       partition: `persist:${id}`,
-    }
-  })
+    },
+  });
 
   // 窗口即将关闭时
   win.on('close', (e) => {
-    e.preventDefault()
-    win.webContents.session.cookies.get({ name: 'thor', domain:'.jd.com', httpOnly: true}).then((cookies) => {
-      console.log('cookies',cookies)
-      mainWindow?.webContents.send('update-shop-login-expire', { name: shop.name, expire: (cookies?.[0].expirationDate || 0) * 1000 })
-    }).finally(()=>{
-      win.destroy()
-    })
-  })
+    e.preventDefault();
+    // eslint-disable-next-line promise/catch-or-return
+    win.webContents.session.cookies
+      .get({ name: 'thor', domain: '.jd.com', httpOnly: true })
+      .then((cookies) => {
+        console.log('cookies', cookies);
+        mainWindow?.webContents.send('update-shop-login-expire', {
+          name: shop.name,
+          expire: (cookies?.[0].expirationDate || 0) * 1000,
+        });
+      })
+      .catch((err: any) => {
+        console.log('get cookies err', err);
+      })
+      .finally(() => {
+        win.destroy();
+      });
+  });
 
-  win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
-    details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    callback({ cancel: false, requestHeaders: details.requestHeaders })
-  })
+  win.webContents.session.webRequest.onBeforeSendHeaders(
+    (details, callback) => {
+      details.requestHeaders['User-Agent'] =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    },
+  );
 
-  let currentStep = 0
+  let currentStep = 0;
 
-return Promise.race([new Promise((resolve, reject) => {
-  if (!isTaskRunning) return
-   setTimeout(() => {
-      resolve(rowData)
-      win.close()
-   },60000)
-}), new Promise((resolve, reject) => {
-  win.webContents.on('did-navigate', (event, url) => {
-    console.log(`已经导航到: ${url}`)
-    if (!isTaskRunning) return
-    if (url.indexOf('https://passport.shop.jd.com/login/index.action') > -1) {
-      mainWindow?.webContents.send('need-login', shop.name)
-      resolve(rowData)
-    }
-  })
+  return Promise.race([
+    new Promise((resolve, reject) => {
+      if (!isTaskRunning) return;
+      setTimeout(() => {
+        resolve(rowData);
+        win.close();
+      }, 60000);
+    }),
+    new Promise((resolve, reject) => {
+      win.webContents.on('did-navigate', (event, url) => {
+        console.log(`已经导航到: ${url}`);
+        if (!isTaskRunning) return;
+        if (
+          url.indexOf('https://passport.shop.jd.com/login/index.action') > -1
+        ) {
+          mainWindow?.webContents.send('need-login', shop.name);
+          resolve(rowData);
+        }
+      });
 
-  win.webContents.on('did-finish-load', () => {
-    const currentUrl = win.webContents.getURL()
-    console.log('did-finish-load', currentUrl)
-    // https://jzt.jd.com/home/#/index
-    if (!isTaskRunning || !currentUrl.includes('https://jzt.jd.com/home/#/index')) return
-    win.webContents.executeJavaScript(`
+      win.webContents.on('did-finish-load', () => {
+        const currentUrl = win.webContents.getURL();
+        console.log('did-finish-load', currentUrl);
+        // https://jzt.jd.com/home/#/index
+        if (
+          !isTaskRunning ||
+          !currentUrl.includes('https://jzt.jd.com/home/#/index')
+        )
+          return;
+        win.webContents.executeJavaScript(`
       setTimeout(() => {
         document.querySelector("body > div.container > div > div.new-body > div > div.left > div.overview.mt16 > div > div.tab_new > div.conditions-left > div > div > button")?.click();
         console.log('点击时间选择')
@@ -179,71 +212,81 @@ return Promise.race([new Promise((resolve, reject) => {
           }, 1000)
         }, 1000)
       }, 1000)
-    `)
-  })
+    `);
+      });
 
-  //     'https://passport.shop.jd.com/login/json/qrcode_check.action',
-  //     'https://sz.jd.com/sz/api/trade/getSummaryData.ajax',
-  //     // 店铺信息
-  //     'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade'
-  getHttpData(win,[
-    {
-      url: 'https://sz.jd.com/sz/api/trade/getSummaryData.ajax',
-      callback: (url:string,data:string) => {
-        if (!isTaskRunning) return
-        console.log('商智数据',data)
-      }
-    },
-    {
-      url: 'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade',
-      callback: (url:string,data:string) => {
-        if (!isTaskRunning) return
-        if (data){
-          console.log('店铺信息', JSON.parse(data))
-          const shopData = JSON.parse(data)
-          rowData[0] = shopData.data.shopName
-          rowData[1] = shopData.data.scoreRankRateGrade
-          winLoadUrl(win, 'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302')
-        }
-      }
-    },
-    {
-      url: 'api=dsm.wareshopv2.ware.wareListService.queryWareList',
-      callback: (url:string,data:string) => {
-        if (!isTaskRunning) return
-        // 需要打开的页面 https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302
-        //记录第一个商品de上架时间，名称为 最新上架时间。右下角，记录在售商品数
-        console.log('商品数据',JSON.parse(data))
-        const wareData = JSON.parse(data)
-        rowData[2] = wareData.data.totalCount
-        rowData[3] = getDate(wareData.data.data[0].onlineTime)
-        resolve(rowData)
-        win.close()
-      }
-    },
-    {
-      url: 'https://atoms-api.jd.com/reweb/common/indicator',
-      callback: (url:string,data:string, postDataStr:string | undefined) => {
-        if (!isTaskRunning) return
-        const postData = JSON.parse(postDataStr || '')
+      //     'https://passport.shop.jd.com/login/json/qrcode_check.action',
+      //     'https://sz.jd.com/sz/api/trade/getSummaryData.ajax',
+      //     // 店铺信息
+      //     'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade'
+      getHttpData(win, [
+        {
+          url: 'https://sz.jd.com/sz/api/trade/getSummaryData.ajax',
+          callback: (url: string, data: string) => {
+            if (!isTaskRunning) return;
+            console.log('商智数据', data);
+          },
+        },
+        {
+          url: 'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade',
+          callback: (url: string, data: string) => {
+            if (!isTaskRunning) return;
+            if (data) {
+              console.log('店铺信息', JSON.parse(data));
+              const shopData = JSON.parse(data);
+              rowData[0] = shopData.data.shopName;
+              rowData[1] = shopData.data.scoreRankRateGrade;
+              winLoadUrl(
+                win,
+                'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302',
+              );
+            }
+          },
+        },
+        {
+          url: 'api=dsm.wareshopv2.ware.wareListService.queryWareList',
+          callback: (url: string, data: string) => {
+            if (!isTaskRunning) return;
+            // 需要打开的页面 https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302
+            //记录第一个商品de上架时间，名称为 最新上架时间。右下角，记录在售商品数
+            console.log('商品数据', JSON.parse(data));
+            const wareData = JSON.parse(data);
+            rowData[2] = wareData.data.totalCount;
+            rowData[3] = getDate(wareData.data.data[0].onlineTime);
+            resolve(rowData);
+            win.close();
+          },
+        },
+        {
+          url: 'https://atoms-api.jd.com/reweb/common/indicator',
+          callback: (
+            url: string,
+            data: string,
+            postDataStr: string | undefined,
+          ) => {
+            if (!isTaskRunning) return;
+            const postData = JSON.parse(postDataStr || '');
 
-        if (Date.parse(postData.endDay) === getYesterday235959Timestamp()){
-          console.log('昨日数据',JSON.parse(data))
-        }else if (Date.parse(postData.startDay) === getCurrentMonthFirstDayTimestamp()){
-          console.log('本月数据',JSON.parse(data))
-        }
-      }
-    }
-
-  ])
-  winLoadUrl(win, 'https://shop.jd.com/jdm/home')
-})])
+            if (Date.parse(postData.endDay) === getYesterday235959Timestamp()) {
+              console.log('昨日数据', JSON.parse(data));
+            } else if (
+              Date.parse(postData.startDay) ===
+              getCurrentMonthFirstDayTimestamp()
+            ) {
+              console.log('本月数据', JSON.parse(data));
+            }
+          },
+        },
+      ]);
+      winLoadUrl(win, 'https://shop.jd.com/jdm/home');
+    }),
+  ]);
 }
 
-function winLoadUrl(win:BrowserWindow, url:string) {
-  win.loadURL(url,{
-    userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`
-  })
+function winLoadUrl(win: BrowserWindow, url: string) {
+  win.loadURL(url, {
+    userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
+  });
 }
 
 if (process.env.NODE_ENV === 'production') {
@@ -317,7 +360,7 @@ const createWindow = async () => {
   });
 
   mainWindow.on('close', (event) => {
-    BrowserWindow.getAllWindows().forEach(win => {
+    BrowserWindow.getAllWindows().forEach((win) => {
       if (win.getParentWindow() === mainWindow) {
         win.close();
       }

@@ -2,8 +2,14 @@
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
-export type Channels = 'open-window' | 'delete-session' | 'need-login'
-  | 'update-shop-login-expire' | 'start-task' |'stop-task'| 'export-excel';
+export type Channels =
+  | 'open-window'
+  | 'delete-session'
+  | 'need-login'
+  | 'update-shop-login-expire'
+  | 'start-task'
+  | 'stop-task'
+  | 'export-excel';
 
 const electronHandler = {
   ipcRenderer: {
@@ -23,9 +29,9 @@ const electronHandler = {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
     },
   },
-  getBase64(str:string):string{
-    return Buffer.from(str).toString('base64')
-  }
+  getBase64(str: string): string {
+    return Buffer.from(str).toString('base64');
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);
