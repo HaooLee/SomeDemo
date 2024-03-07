@@ -4,7 +4,47 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a56a36ac-df88-448a-b3fc-fbdab4e206d2" name="Changes" comment="Changes" />
+    <list default="true" id="a56a36ac-df88-448a-b3fc-fbdab4e206d2" name="Changes" comment="Changes">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/haoqiProject/shop-manager/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/haoqiProject/shop-manager/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/env.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/getHttpsConfig.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/jest/babelTransform.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/jest/cssTransform.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/jest/fileTransform.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/modules.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/paths.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/webpack.config.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/webpack/persistentCache/createEnvironmentHash.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/config/webpackDevServer.config.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/haoqiProject/shop-manager/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/favicon.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/logo192.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/logo512.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/manifest.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/public/robots.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/scripts/build.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/scripts/start.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/scripts/test.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/App.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/App.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/components/MainPage/index.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/index.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/index.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/react-app-env.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/reportWebVitals.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/src/setupTests.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/haoqiProject/shop-manager/tsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/shop-manager/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/haoqiProject/shop-manager/yarn.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/统计店铺数据/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/统计店铺数据/main.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/统计店铺数据/package-lock.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/haoqiProject/统计店铺数据/package.json" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -18,9 +58,10 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="JavaScript File" />
         <option value="HTML File" />
         <option value="TypeScript JSX File" />
+        <option value="JavaScript File" />
+        <option value="TypeScript File" />
       </list>
     </option>
   </component>
@@ -70,6 +111,17 @@
               </option>
               <option name="repositoryRootUrl" value="file://$PROJECT_DIR$/浩奇项目/chromePlugin/chrome-extension-ysbang-react" />
             </RecentBranchesForRepo>
+            <RecentBranchesForRepo>
+              <option name="branches">
+                <list>
+                  <RecentBranch>
+                    <option name="branchName" value="main" />
+                    <option name="lastUsedInstant" value="1709634131" />
+                  </RecentBranch>
+                </list>
+              </option>
+              <option name="repositoryRootUrl" value="file://$PROJECT_DIR$/haoqiProject/shop-manager" />
+            </RecentBranchesForRepo>
           </list>
         </option>
       </RecentBranches>
@@ -79,7 +131,7 @@
     <option name="stateVersion" value="1" />
   </component>
   <component name="PackageJsonUpdateNotifier">
-    <dismissed value="$PROJECT_DIR$/haoqiProject/shop-manager/package.json" />
+    <dismissed value="$PROJECT_DIR$/haoqiProject/shop-manager-test/package.json" />
   </component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="CurrentFile" />
@@ -92,31 +144,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/lihao/Desktop/Demo/npxELelctronTest&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.typescriptcompiler&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Applications/WebStorm.app/Contents/plugins/javascript-impl/jsLanguageServicesImpl/external&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/lihao/Desktop/Demo",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "settings.typescriptcompiler",
+    "ts.external.directory.path": "/Applications/WebStorm.app/Contents/plugins/javascript-impl/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/haoqiProject/shop-manager" />
       <recent name="$PROJECT_DIR$/npxELelctronTest" />
       <recent name="$PROJECT_DIR$/浩奇项目/chromePlugin/chrome-extension-react-ysbang/ysbang-extension" />
       <recent name="$PROJECT_DIR$/浩奇项目/chromePlugin/chrome-extension-react-ysbang/ysbang-extension/src" />
-      <recent name="$PROJECT_DIR$/存档结构设计" />
-      <recent name="$PROJECT_DIR$/存档结构设计/dagre" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/haoqiProject/shop-manager" />
     </key>
   </component>
   <component name="RunManager" selected="Node.js.test.js">
@@ -181,7 +236,7 @@
       <workItem from="1704795553317" duration="99000" />
       <workItem from="1705558998377" duration="1290000" />
       <workItem from="1705648291042" duration="7145000" />
-      <workItem from="1709550487196" duration="14534000" />
+      <workItem from="1709550487196" duration="83406000" />
     </task>
     <task id="LOCAL-00001" summary="Changes">
       <option name="closed" value="true" />

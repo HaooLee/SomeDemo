@@ -1,19 +1,26 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
-const path = require('path')
+const url = require('node:url');
+const path = require('node:path')
 
 let mainWindow
 
 function createMainWindow () {
   mainWindow = new BrowserWindow({
-    width: 800,
+    width: 1000,
     height: 600,
     webPreferences: {
+      devTools: true,
       nodeIntegration: true,
       contextIsolation: false
     }
   })
 
-  mainWindow.loadFile(path.join(__dirname, 'index.html'))
+
+  mainWindow.webContents.openDevTools();
+  mainWindow.loadURL('http://localhost:3000')
+
+  // mainWindow.loadURL(url.format({
+  //   pathname: path.join(__dirname, './build/index.html'), protocol: 'file:', slashes: true }))
 
   mainWindow.on('closed', function () {
     mainWindow = null
