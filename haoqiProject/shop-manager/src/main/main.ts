@@ -10,9 +10,10 @@
  */
 import path from 'path';
 import { Buffer } from 'node:buffer';
-import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, session, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import fs from 'fs';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import { getHttpData } from './getResponse';
@@ -33,25 +34,82 @@ class AppUpdater {
 
 export type Shop = {
   name: string;
+  realInfo: any;
   expire?: number | undefined;
+  updateTime: string;
 };
+
+const userAgent =
+  process.platform === 'win32'
+    ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 let mainWindow: BrowserWindow | null = null;
 
 let isTaskRunning = false;
 
-const excelData: any[] = [];
+let excelData: any[] = [];
 
-ipcMain.on('export-excel', async (event, arg) => {
-  console.log(arg, 'export-excel');
-  const name = createExcel(excelData);
-  event.reply('export-excel', path.resolve(__dirname, name));
+let savePath = '';
+
+ipcMain.on('open-file', async (event, arg) => {
+  shell.openPath(savePath);
+});
+
+async function openDialog(): Promise<string | undefined> {
+  const result = await dialog.showOpenDialog({
+    title: '选择一个文件夹',
+    properties: ['openDirectory'],
+  });
+
+  if (result.canceled) {
+    return;
+  }
+
+  // eslint-disable-next-line prefer-destructuring
+  savePath = result.filePaths[0];
+  fs.access(savePath, fs.constants.W_OK, (err) => {
+    if (err) {
+      mainWindow?.webContents.send('main-err', '没有写入权限');
+    }
+  });
+  console.log(result, 'open-save-dialog');
+  mainWindow?.webContents.send('save-path-changed', savePath);
+  // eslint-disable-next-line consistent-return
+  return savePath;
+}
+
+ipcMain.on('open-save-dialog', async (event, arg) => {
+  await openDialog();
+});
+
+ipcMain.on('export-excel', async (event, sp) => {
+  console.log(sp, 'export-excel');
+  savePath = sp;
+  if (excelData.length === 0) {
+    event.reply('export-excel', {
+      path: '',
+      isAuto: false,
+      isSuccess: false,
+    });
+    return;
+  }
+  try {
+    const name = createExcel(excelData, savePath);
+    event.reply('export-excel', {
+      path: name,
+      isAuto: false,
+      isSuccess: true,
+    });
+  } catch (e) {
+    mainWindow.webContents.send('main-err', e);
+  }
 });
 
 ipcMain.on('open-window', async (event, arg) => {
   //
   // console.log(arg, 'open-window');
-  createSubWindow(arg.shop);
+  createSubWindow(arg.shop, false);
   event.reply('open-window', 'pong');
 });
 
@@ -65,47 +123,94 @@ ipcMain.on('delete-session', async (event, arg) => {
     .catch(() => event.reply('delete-session', 'error'));
 });
 
-ipcMain.on('start-task', async (event, shopList) => {
-  event.reply('start-task', 'pong');
-  console.log(shopList, 'start-task');
-  isTaskRunning = true;
-  runGetDataTask(shopList)
-    .then(() => {
-      console.log('任务结束');
-      isTaskRunning = false;
-      if (excelData.length > 0) {
-        const name = createExcel(excelData);
-        mainWindow?.webContents.send(
-          'export-excel',
-          path.resolve(__dirname, name),
-        );
+ipcMain.on(
+  'start-task',
+  async (event, { shopList, isBackgroundTask, savePath: sp }) => {
+    savePath = sp;
+    if (isTaskRunning) {
+      return;
+    }
+    if (shopList.length === 0) {
+      mainWindow?.webContents.send('stop-task', 'pong');
+      return;
+    }
+
+    if (!savePath) {
+      const filePath = await openDialog();
+      if (!filePath) {
+        mainWindow?.webContents.send('stop-task', 'pong');
+        return;
       }
-    })
-    .finally(() => {
-      console.log('任务结束');
-      isTaskRunning = false;
-    });
-});
+    }
+
+    event.reply('start-task', 'pong');
+    console.log(shopList, 'start-task');
+    isTaskRunning = true;
+    excelData = [];
+    runGetDataTask(shopList, isBackgroundTask)
+      .then(() => {
+        console.log('任务结束');
+        isTaskRunning = false;
+        if (excelData.length > 0) {
+          const name = createExcel(excelData, savePath);
+          mainWindow?.webContents.send('export-excel', {
+            path: name,
+            isAuto: true,
+            isSuccess: true,
+          });
+        }
+      })
+      .catch((err) => {
+        console.log('任务出错', err);
+        isTaskRunning = false;
+        mainWindow.webContents.send('main-err', err);
+      })
+      .finally(() => {
+        console.log('任务结束');
+        isTaskRunning = false;
+        mainWindow?.webContents.send('stop-task', 'pong');
+      });
+  },
+);
 
 ipcMain.on('stop-task', async (event, arg) => {
   console.log(arg, 'stop-task');
   isTaskRunning = false;
+  // 所有的子页面都销毁
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (win.getParentWindow() === mainWindow) {
+      win.close();
+    }
+  });
   event.reply('stop-task', 'pong');
 });
 
-async function runGetDataTask(shopList: Shop[]) {
+async function runGetDataTask(shopList: Shop[], isBackgroundTask: boolean) {
   for (let i = 0; i < shopList.length; i++) {
     if (!isTaskRunning) return;
-    const rowData = await createSubWindow(shopList[i]);
+    const rowData = await createSubWindow(shopList[i], isBackgroundTask);
     if (rowData) {
       excelData.push(rowData);
     }
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 1000 * 30);
+    });
   }
 }
 
-function createSubWindow(shop: Shop): Promise<any> {
+function winLoadUrl(win: BrowserWindow, url: string) {
+  if (win && !win.isDestroyed()) {
+    win.loadURL(url, {
+      userAgent,
+    });
+  }
+}
+
+function createSubWindow(shop: Shop, isBackgroundTask: boolean): Promise<any> {
   const id = Buffer.from(shop.name).toString('base64');
-  const rowData = new Array(15).fill('-');
+  const rowData = new Array(17).fill('-');
 
   console.log('id', `persist:${id}`);
   // eslint-disable-next-line prefer-promise-reject-errors
@@ -114,12 +219,14 @@ function createSubWindow(shop: Shop): Promise<any> {
     width: 1200,
     height: 800,
     parent: mainWindow,
+    show: !isBackgroundTask,
+    title: shop?.realInfo?.shopName,
     // modal: true,
     // closable: true,
     // titleBarStyle: 'default',
 
     webPreferences: {
-      devTools: true,
+      devTools: false,
       nodeIntegration: false,
       contextIsolation: false,
       webSecurity: false,
@@ -150,21 +257,23 @@ function createSubWindow(shop: Shop): Promise<any> {
 
   win.webContents.session.webRequest.onBeforeSendHeaders(
     (details, callback) => {
-      details.requestHeaders['User-Agent'] =
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+      details.requestHeaders['User-Agent'] = userAgent;
       callback({ cancel: false, requestHeaders: details.requestHeaders });
     },
   );
 
-  let currentStep = 0;
+  let timer: number;
 
   return Promise.race([
     new Promise((resolve, reject) => {
       if (!isTaskRunning) return;
-      setTimeout(() => {
+      // @ts-ignore
+      timer = setTimeout(() => {
         resolve(rowData);
-        win.close();
-      }, 60000);
+        if (win && !win.isDestroyed()) {
+          win.close();
+        }
+      }, 60000 * 5);
     }),
     new Promise((resolve, reject) => {
       win.webContents.on('did-navigate', (event, url) => {
@@ -174,6 +283,12 @@ function createSubWindow(shop: Shop): Promise<any> {
           url.indexOf('https://passport.shop.jd.com/login/index.action') > -1
         ) {
           mainWindow?.webContents.send('need-login', shop.name);
+
+          setTimeout(() => {
+            resolve(rowData);
+          }, 60000 * 4);
+          // https://jzt.jd.com/jst/#/index
+        } else if (url.includes('https://jzt.jd.com/jst/#/index')) {
           resolve(rowData);
         }
       });
@@ -181,14 +296,26 @@ function createSubWindow(shop: Shop): Promise<any> {
       win.webContents.on('did-finish-load', () => {
         const currentUrl = win.webContents.getURL();
         console.log('did-finish-load', currentUrl);
+        win.webContents.executeJavaScript(`
+            setTimeout(() => {
+              window.location.reload();
+            }, 15000)
+        `);
         // https://jzt.jd.com/home/#/index
         if (
-          !isTaskRunning ||
-          !currentUrl.includes('https://jzt.jd.com/home/#/index')
-        )
-          return;
-        win.webContents.executeJavaScript(`
-      setTimeout(() => {
+          isTaskRunning &&
+          currentUrl.includes('https://jzt.jd.com/home/#/index')
+        ) {
+          win.webContents.executeJavaScript(`
+          var __scTimer = setInterval(function(){
+            if(document.querySelector("body > div.container > div > div.new-body > div > div.left > div.overview.mt16 > div > div.tab_new > div.conditions-left > div > div > button")){
+              startClick();
+              clearInterval(__scTimer)
+            }
+          }, 100);
+
+         function startClick(){
+            setTimeout(() => {
         document.querySelector("body > div.container > div > div.new-body > div > div.left > div.overview.mt16 > div > div.tab_new > div.conditions-left > div > div > button")?.click();
         console.log('点击时间选择')
         setTimeout(() => {
@@ -211,8 +338,17 @@ function createSubWindow(shop: Shop): Promise<any> {
             }, 1000)
           }, 1000)
         }, 1000)
-      }, 1000)
+      }, 500)
+         }
     `);
+        } else if (
+          // eslint-disable-next-line no-dupe-else-if
+          isTaskRunning &&
+          currentUrl.includes('https://jzt.jd.com/gw/index')
+        ) {
+          // 进入这个页面代表没有京准通
+          resolve(rowData);
+        }
       });
 
       //     'https://passport.shop.jd.com/login/json/qrcode_check.action',
@@ -221,40 +357,123 @@ function createSubWindow(shop: Shop): Promise<any> {
       //     'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade'
       getHttpData(win, [
         {
-          url: 'https://sz.jd.com/sz/api/trade/getSummaryData.ajax',
-          callback: (url: string, data: string) => {
-            if (!isTaskRunning) return;
-            console.log('商智数据', data);
-          },
-        },
-        {
           url: 'api=dsm.shop.vane.view.core.export.ohs.stars.service.VaneStarsFacade',
           callback: (url: string, data: string) => {
+            const shopData = JSON.parse(data);
+            mainWindow.webContents.send('update-shop-real-info', {
+              name: shop.name,
+              realInfo: shopData.data,
+            });
             if (!isTaskRunning) return;
             if (data) {
               console.log('店铺信息', JSON.parse(data));
-              const shopData = JSON.parse(data);
               rowData[0] = shopData.data.shopName;
               rowData[1] = shopData.data.scoreRankRateGrade;
-              winLoadUrl(
-                win,
-                'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302',
-              );
+              // winLoadUrl(
+              //   win,
+              //   'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302',
+              // );
+              setTimeout(() => {
+                winLoadUrl(
+                  win,
+                  'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302',
+                );
+              }, 1000);
             }
           },
         },
+        {
+          // 这个是老版本的接口返回的数据
+          url: '/api/vender/backs/info/jsonp',
+          callback: (url: string, d: string) => {
+            const data = d.match(/\((.*)\)/)[1];
+            const shopData = JSON.parse(data);
+            mainWindow.webContents.send('update-shop-real-info', {
+              name: shop.name,
+              realInfo: shopData.data,
+            });
+            if (!isTaskRunning) return;
+            if (d) {
+              rowData[0] = shopData.data.shopName;
+              rowData[1] = shopData.data.scoreRankRateGrade;
+              console.log('店铺信息', shopData);
+              setTimeout(() => {
+                winLoadUrl(
+                  win,
+                  'https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302',
+                );
+              }, 1000);
+            }
+          },
+        },
+        // 新版本的商品上架时间和总数量
         {
           url: 'api=dsm.wareshopv2.ware.wareListService.queryWareList',
           callback: (url: string, data: string) => {
             if (!isTaskRunning) return;
             // 需要打开的页面 https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302
-            //记录第一个商品de上架时间，名称为 最新上架时间。右下角，记录在售商品数
+            // 记录第一个商品de上架时间，名称为 最新上架时间。右下角，记录在售商品数
             console.log('商品数据', JSON.parse(data));
             const wareData = JSON.parse(data);
             rowData[2] = wareData.data.totalCount;
             rowData[3] = getDate(wareData.data.data[0].onlineTime);
-            resolve(rowData);
-            win.close();
+
+            // https://sz.jd.com/sz/view/dealAnalysis/dealSummarys.html
+            setTimeout(() => {
+              winLoadUrl(
+                win,
+                'https://sz.jd.com/sz/view/dealAnalysis/dealSummarys.html',
+              );
+            }, 1000);
+          },
+        },
+        // 老版本的商品上架时间和总数量
+        {
+          url: 'https://ware.shop.jd.com/rest/ware/list/search',
+          callback: (url: string, data: string) => {
+            if (!isTaskRunning) return;
+            // 需要打开的页面 https://shop.jd.com/jdm/ware/manage/list/OnsaleWare?_JDMOMID_=1303,1302
+            // 记录第一个商品de上架时间，名称为 最新上架时间。右下角，记录在售商品数
+            console.log('商品数据', JSON.parse(data));
+            const wareData = JSON.parse(data);
+            rowData[2] = wareData.data.totalItem;
+            rowData[3] = getDate(wareData.data.data[0].ware.onlineTime);
+            setTimeout(() => {
+              winLoadUrl(
+                win,
+                'https://sz.jd.com/sz/view/dealAnalysis/dealSummarys.html',
+              );
+            });
+          },
+        },
+        {
+          url: 'sz.jd.com/sz/api/trade/getSummaryData.ajax',
+          callback: (url: string, data: string) => {
+            console.log('匹配到商智数据', data);
+            if (!isTaskRunning) return;
+            console.log('商智数据', data);
+            const szData = JSON.parse(data);
+            rowData[4] = szData.content.UV.value;
+            rowData[5] = szData.content.OrdNum.value;
+            rowData[6] = szData.content.OrdAmt.value;
+            rowData[7] = szData.content.CustPriceAvg.value;
+            rowData[8] = `${szData.content.ToOrdRate.value * 100}%`;
+            setTimeout(() => {
+              winLoadUrl(win, 'https://sz.jd.com/sz/view/indexs.html');
+            }, 1000);
+          },
+        },
+        {
+          url: 'https://sz.jd.com/sz/api/realtime/getRealtimeData.ajax',
+          callback: (url: string, data: string) => {
+            if (!isTaskRunning) return;
+            console.log('商智数据2', data);
+            const szData = JSON.parse(data);
+            rowData[9] = szData.content.MonthOrdAmtTotal.value;
+            rowData[10] = szData.content.YearOrdAmtTotal.value;
+            setTimeout(() => {
+              winLoadUrl(win, 'https://jzt.jd.com/home/#/index');
+            }, 1000);
           },
         },
         {
@@ -266,27 +485,33 @@ function createSubWindow(shop: Shop): Promise<any> {
           ) => {
             if (!isTaskRunning) return;
             const postData = JSON.parse(postDataStr || '');
-
             if (Date.parse(postData.endDay) === getYesterday235959Timestamp()) {
               console.log('昨日数据', JSON.parse(data));
+              const jztData = JSON.parse(data);
+              rowData[11] = jztData.data.cost;
+              rowData[12] = jztData.data.CPC;
+              rowData[13] = jztData.data.totalOrderROI;
             } else if (
               Date.parse(postData.startDay) ===
               getCurrentMonthFirstDayTimestamp()
             ) {
               console.log('本月数据', JSON.parse(data));
+              const jztData = JSON.parse(data);
+              rowData[14] = jztData.data.cost;
+              rowData[15] = jztData.data.CPC;
+              rowData[16] = jztData.data.totalOrderROI;
+              resolve(rowData);
             }
           },
         },
       ]);
+      // eslint-disable-next-line no-use-before-define
       winLoadUrl(win, 'https://shop.jd.com/jdm/home');
+    }).finally(() => {
+      clearTimeout(timer);
+      win.destroy();
     }),
   ]);
-}
-
-function winLoadUrl(win: BrowserWindow, url: string) {
-  win.loadURL(url, {
-    userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
-  });
 }
 
 if (process.env.NODE_ENV === 'production') {
@@ -300,7 +525,6 @@ const isDebug =
 if (isDebug) {
   require('electron-debug')();
 }
-
 const installExtensions = async () => {
   const installer = require('electron-devtools-installer');
   const forceDownload = !!process.env.UPGRADE_EXTENSIONS;
@@ -329,10 +553,13 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    width: 1400,
+    height: 900,
     icon: getAssetPath('icon.png'),
+    minWidth: 1000,
+    minHeight: 600,
     webPreferences: {
+      devTools: false,
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
         : path.join(__dirname, '../../.erb/dll/preload.js'),
@@ -343,7 +570,7 @@ const createWindow = async () => {
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
-
+  mainWindow.webContents.openDevTools();
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');

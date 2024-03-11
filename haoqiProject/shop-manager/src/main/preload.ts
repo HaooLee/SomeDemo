@@ -3,13 +3,18 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 export type Channels =
-  | 'open-window'
-  | 'delete-session'
-  | 'need-login'
-  | 'update-shop-login-expire'
-  | 'start-task'
-  | 'stop-task'
-  | 'export-excel';
+  | 'open-window' // 打开窗口
+  | 'delete-session' // 删除会话
+  | 'need-login' // 需要登录
+  | 'update-shop-login-expire' // 更新店铺登录过期时间
+  | 'start-task' // 开始任务
+  | 'stop-task' // 停止任务
+  | 'export-excel' // 导出 Excel
+  | 'main-err' // 主进程错误
+  | 'save-path-changed' // 保存路径改变
+  | 'open-save-dialog' // 打开保存对话框
+  | 'open-file' // 打开文件
+  | 'update-shop-real-info'; // 更新店铺真实信息
 
 const electronHandler = {
   ipcRenderer: {

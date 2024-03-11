@@ -11,15 +11,28 @@ import {
   Avatar,
   Flex,
   Divider,
+  Space,
+  Rate,
+  Switch,
+  Tag,
 } from 'antd';
 import './App.css';
 
-import { DeleteTwoTone } from '@ant-design/icons';
+import {
+  DeleteTwoTone,
+  CheckOutlined,
+  CloseOutlined,
+  EditTwoTone,
+} from '@ant-design/icons';
 
 import { Shop } from '../main/main';
+import { getDate } from '../utils/date';
 
 function MainPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBackgroundTask, setIsBackgroundTask] = useState(
+    localStorage.getItem('isBackgroundTask') === 'true',
+  );
   const [messageApi, contextHolder] = message.useMessage();
   const [notifiyApi, contextHolder1] = notification.useNotification();
   const [shopName, setShopName] = useState('');
@@ -27,10 +40,16 @@ function MainPage() {
     JSON.parse(localStorage.getItem('shopList') || '""') || [],
   );
   const [isStart, setIsStart] = useState(false);
+  const [, updateState] = useState(Math.random());
+  const forceUpdate = React.useCallback(() => updateState(Math.random()), []);
+  const [filePath, setFilePath] = useState(
+    localStorage.getItem('filePath') || '',
+  );
 
   const setShopList = (list: Shop[]) => {
     shopList.current = list;
     localStorage.setItem('shopList', JSON.stringify(list));
+    forceUpdate();
   };
 
   const handleAddShop = (): void => {
@@ -38,6 +57,15 @@ function MainPage() {
   };
 
   useEffect(() => {
+    window.electron.ipcRenderer.on('main-err', (e) => {
+      notifiyApi.error({
+        message: '导出失败',
+        description: e.toString(),
+        duration: 60,
+      });
+      console.error(e);
+    });
+
     const needLogin = (name) => {
       const utterance = new SpeechSynthesisUtterance(
         `${name}登录失效，请重新登录`,
@@ -64,20 +92,68 @@ function MainPage() {
       updateShopLoginExpire,
     );
 
-    const exportExcel = (arg: any) => {
+    const exportExcel = ({ path, isAuto, isSuccess }: any) => {
+      if (!isSuccess) {
+        notifiyApi.error({
+          message: '导出失败',
+          description: `没有数据你导出锤子啊`,
+        });
+        return;
+      }
+      if (isAuto) setIsStart(false);
       notifiyApi.success({
         message: '导出成功',
-        description: `文件保存在: ${arg}`,
+        description: `文件保存在: ${path}`,
         duration: 10,
       });
     };
 
     const rmee = window.electron.ipcRenderer.on('export-excel', exportExcel);
 
+    const st = window.electron.ipcRenderer.on('stop-task', () => {
+      setIsStart(false);
+    });
+
+    const spc = window.electron.ipcRenderer.on(
+      'save-path-changed',
+      (fPath: string) => {
+        notifiyApi.success({
+          message: '保存路径已设置',
+          description: `文件将保存在: ${fPath}`,
+          duration: 10,
+        });
+        localStorage.setItem('filePath', fPath);
+        setFilePath(fPath);
+      },
+    );
+
+    const updateShopRealInfo = (arg: any) => {
+      const newShopList = shopList.current.map((item: any) => {
+        if (item.name === arg.name) {
+          return {
+            ...item,
+            realInfo: arg.realInfo,
+            updateTime: getDate(),
+          };
+        }
+        return item;
+      });
+      setShopList(newShopList);
+      console.log('updateShopRealInfo', arg);
+    };
+
+    const rmri = window.electron.ipcRenderer.on(
+      'update-shop-real-info',
+      updateShopRealInfo,
+    );
+
     return () => {
       rmnl();
       rmusle();
       rmee();
+      rmri();
+      st();
+      spc();
     };
   }, []);
 
@@ -112,6 +188,8 @@ function MainPage() {
     // ]);
     shopList.current.push({
       name: shopName,
+      realInfo: {},
+      updateTime: getDate(),
     });
     setShopList(shopList.current);
     openWindow(shopName);
@@ -119,15 +197,19 @@ function MainPage() {
   };
 
   const deleteShop = (name: string) => {
+    if (isStart) {
+      messageApi.error('请先停止统计');
+      return;
+    }
     window.electron.ipcRenderer.once('delete-session', (arg) => {
-      console.log('dddddddddddddddddd');
       // eslint-disable-next-line no-console
       if (arg === 'success') {
-        //setShopList(shopList.filter((item: any) => item.name !== name));
+        // setShopList(shopList.filter((item: any) => item.name !== name));
         const newShopList = shopList.current.filter(
           (item: any) => item.name !== name,
         );
         setShopList(newShopList);
+        messageApi.success('删除成功');
       } else {
         messageApi.error('删除失败');
       }
@@ -154,18 +236,19 @@ function MainPage() {
     window.electron.ipcRenderer.once('start-task', () => {
       setIsStart(true);
     });
-    window.electron.ipcRenderer.sendMessage('start-task', shopList.current);
+    window.electron.ipcRenderer.sendMessage('start-task', {
+      shopList: shopList.current,
+      isBackgroundTask,
+      savePath: filePath,
+    });
   };
 
   const handleStopTask = () => {
-    window.electron.ipcRenderer.once('stop-task', () => {
-      setIsStart(false);
-    });
     window.electron.ipcRenderer.sendMessage('stop-task');
   };
 
   const handleExportExcel = () => {
-    window.electron.ipcRenderer.sendMessage('export-excel');
+    window.electron.ipcRenderer.sendMessage('export-excel', filePath);
   };
 
   return (
@@ -180,33 +263,79 @@ function MainPage() {
         店铺统计助手
       </h1>
       <Card>
-        <Flex
-          style={{ backgroundColor: '#fff' }}
-          justify="space-evenly"
-          align="center"
-        >
-          <Button
-            type="primary"
-            loading={isStart}
-            onClick={() => handleStartTask()}
+        <Flex vertical gap={'large'}>
+          <Flex
+            style={{ backgroundColor: '#fff' }}
+            justify="space-evenly"
+            align="center"
           >
-            开始统计
-          </Button>
-          <Button
-            type="primary"
-            disabled={!isStart}
-            onClick={() => handleStopTask()}
-          >
-            停止统计
-          </Button>
-          <Button type="primary" onClick={() => handleExportExcel()}>
-            导出Excel
-          </Button>
-          {/* <Button type="primary">Primary</Button> */}
+            <Button
+              type="primary"
+              loading={isStart}
+              onClick={() => handleStartTask()}
+            >
+              开始统计
+            </Button>
+            <Button
+              type="primary"
+              disabled={!isStart}
+              onClick={() => handleStopTask()}
+            >
+              停止统计
+            </Button>
+            <Button type="primary" onClick={() => handleExportExcel()}>
+              导出Excel
+            </Button>
+            <Space>
+              <div>后台静默统计</div>
+              <Switch
+                checkedChildren={<CheckOutlined />}
+                unCheckedChildren={<CloseOutlined />}
+                checked={isBackgroundTask}
+                disabled={isStart}
+                onChange={(checked) => {
+                  setIsBackgroundTask(checked);
+                  localStorage.setItem('isBackgroundTask', checked.toString());
+                }}
+              />
+            </Space>
+            {/* <Button type="primary">Primary</Button> */}
+          </Flex>
+          <Flex align="center" gap="small">
+            <div>数据保存路径:</div>
+            <Button
+              type="link"
+              onClick={() => {
+                if (isStart) {
+                  messageApi.error('请先停止统计');
+                } else if (filePath) {
+                  window.electron.ipcRenderer.sendMessage(
+                    'open-file',
+                    filePath,
+                  );
+                } else {
+                  window.electron.ipcRenderer.sendMessage('open-save-dialog');
+                }
+              }}
+            >
+              {filePath || '暂未设置保存路径'}
+            </Button>
+            <EditTwoTone
+              className={'delete'}
+              onClick={() => {
+                if (isStart) {
+                  messageApi.error('请先停止统计');
+                } else {
+                  window.electron.ipcRenderer.sendMessage('open-save-dialog');
+                }
+              }}
+            />
+          </Flex>
         </Flex>
         <Divider>店铺列表</Divider>
         <List
           // bordered={true}
+
           className="demo-loadmore-list"
           itemLayout="horizontal"
           locale={{ emptyText: '暂无店铺' }}
@@ -226,16 +355,21 @@ function MainPage() {
           renderItem={(item: any) => (
             <List.Item
               actions={[
-                <a
+                // eslint-disable-next-line jsx-a11y/anchor-is-valid,jsx-a11y/click-events-have-key-events
+                <Button
                   key="list-loadmore-edit"
                   onClick={() => {
                     openWindow(item.name);
                   }}
+                  disabled={isStart}
+                  type="link"
                 >
                   打开窗口
-                </a>,
+                </Button>,
                 <DeleteTwoTone
+                  key="list-loadmore-more"
                   className="delete"
+                  disabled={isStart}
                   onClick={() => deleteShop(item.name)}
                   twoToneColor="#eb2f96"
                 />,
@@ -250,14 +384,36 @@ function MainPage() {
                 }
                 description={`预计登录失效时间：${!item.expire || item.expire < Date.now() ? '已失效' : formateDate(item.expire)} `}
               />
-              <div>{item.name}</div>
+              <Space size="large">
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    fontSize: '12px',
+                    color: '#666',
+                  }}
+                >
+                  数据更新时间:{item.updateTime}
+                </div>
+                <Flex gap="middle" vertical>
+                  <div>{item.realInfo?.shopName}</div>
+                  <Space>
+                    <Rate
+                      disabled
+                      allowHalf
+                      value={parseFloat(item.realInfo?.scoreRankRateGrade) || 0}
+                    />
+                  </Space>
+                </Flex>
+              </Space>
             </List.Item>
           )}
         />
       </Card>
 
       <Modal
-        title="店铺登录"
+        title="新增店铺"
         open={isModalOpen}
         okText="确定"
         cancelText="取消"
@@ -265,7 +421,7 @@ function MainPage() {
         onCancel={handleCancel}
       >
         <Input
-          placeholder="请输入店铺名(确保唯一即可)"
+          placeholder="请输入账号名(确保唯一即可, 一般来说一个账号创建一个)"
           value={shopName}
           onChange={handleShopNameChange}
         />
