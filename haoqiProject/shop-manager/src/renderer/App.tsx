@@ -186,12 +186,17 @@ function MainPage() {
     //     name: shopName,
     //   },
     // ]);
-    shopList.current.push({
-      name: shopName,
-      realInfo: {},
-      updateTime: getDate(),
-    });
-    setShopList(shopList.current);
+    const newShopList = [
+      ...shopList.current,
+      {
+        name: shopName,
+        person: '',
+        assistant: '',
+        realInfo: {},
+        updateTime: getDate(),
+      },
+    ];
+    setShopList(newShopList);
     openWindow(shopName);
     setIsModalOpen(false);
   };
@@ -249,6 +254,18 @@ function MainPage() {
 
   const handleExportExcel = () => {
     window.electron.ipcRenderer.sendMessage('export-excel', filePath);
+  };
+
+  const handleImportShopList = () => {
+    window.electron.ipcRenderer.once('import-shop-list', (arg: any) => {
+      // eslint-disable-next-line no-console
+      console.log(arg);
+      if (arg) {
+        const newShopList = [...shopList.current, ...arg];
+        setShopList(arg);
+      }
+    });
+    window.electron.ipcRenderer.sendMessage('import-shop-list');
   };
 
   return (
@@ -332,10 +349,9 @@ function MainPage() {
             />
           </Flex>
         </Flex>
-        <Divider>店铺列表</Divider>
+        <Divider>店铺列表({shopList?.current?.length})</Divider>
         <List
           // bordered={true}
-
           className="demo-loadmore-list"
           itemLayout="horizontal"
           locale={{ emptyText: '暂无店铺' }}
@@ -348,7 +364,12 @@ function MainPage() {
                 lineHeight: '32px',
               }}
             >
-              <Button onClick={() => handleAddShop()}>新增店铺</Button>
+              <Space size="large">
+                <Button onClick={() => handleImportShopList()}>
+                  从Excel批量导入
+                </Button>
+                <Button onClick={() => handleAddShop()}>新增店铺</Button>
+              </Space>
             </div>
           }
           dataSource={shopList.current}

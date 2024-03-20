@@ -10,10 +10,19 @@
  */
 import path from 'path';
 import { Buffer } from 'node:buffer';
-import { app, BrowserWindow, shell, ipcMain, session, dialog } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  session,
+  dialog,
+  screen,
+} from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import fs from 'fs';
+// import robot from 'robotjs';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import { getHttpData } from './getResponse';
@@ -22,7 +31,20 @@ import {
   getCurrentMonthFirstDayTimestamp,
   getDate,
 } from '../utils/date';
-import { createExcel } from '../utils/createExcel';
+import { createExcel, parseExcel } from '../utils/createExcel';
+
+// robot.setMouseDelay(2);
+//
+// const twoPI = Math.PI * 2.0;
+// const screenSize = robot.getScreenSize();
+// const height = screenSize.height / 2 - 10;
+// const { width } = screenSize;
+//
+// for (let x = 0; x < width; x++) {
+//   const y = height * Math.sin((twoPI * x) / width) + height;
+//   robot.moveMouse(x, y);
+// }
+console.log(process.versions);
 
 class AppUpdater {
   constructor() {
@@ -34,6 +56,10 @@ class AppUpdater {
 
 export type Shop = {
   name: string;
+  // 负责人
+  person: string;
+  // 助手
+  assistant: string;
   realInfo: any;
   expire?: number | undefined;
   updateTime: string;
@@ -78,6 +104,57 @@ async function openDialog(): Promise<string | undefined> {
   // eslint-disable-next-line consistent-return
   return savePath;
 }
+
+// 打开导入excel
+ipcMain.on('import-shop-list', async (event, arg) => {
+  const result = await dialog.showOpenDialog({
+    title: '选择一个文件',
+    properties: ['openFile'],
+    filters: [{ name: 'Excel', extensions: ['xlsx', 'xls'] }],
+  });
+
+  if (result.canceled) {
+    return;
+  }
+
+  const filePath = result.filePaths[0];
+  const jsonData = parseExcel(filePath);
+  console.log(jsonData, 'import-shop-list');
+  if (jsonData.length > 0) {
+    // jsonData中item[0]不能重复 否则 return
+    if (
+      jsonData.some(
+        (item: any) =>
+          jsonData.filter((i: any) => i[0] === item[0] && item[0]).length > 1,
+      )
+    ) {
+      // 找出所有重复的店铺名
+      const repeatShop = jsonData
+        .map((item: any) => item[0])
+        .filter((item, index, arr) => arr.indexOf(item) !== index)
+        .join(',');
+
+      mainWindow?.webContents.send(
+        'main-err',
+        `导入数据中账号名称有重复:${repeatShop}`,
+      );
+      return;
+    }
+
+    const shopList = jsonData
+      .filter((i) => i[0])
+      .map((item: any) => {
+        return {
+          name: item[0],
+          person: item[1],
+          assistant: item[2],
+          realInfo: {},
+          updateTime: '',
+        };
+      });
+    mainWindow?.webContents.send('import-shop-list', shopList);
+  }
+});
 
 ipcMain.on('open-save-dialog', async (event, arg) => {
   await openDialog();
@@ -190,12 +267,13 @@ async function runGetDataTask(shopList: Shop[], isBackgroundTask: boolean) {
     if (!isTaskRunning) return;
     const rowData = await createSubWindow(shopList[i], isBackgroundTask);
     if (rowData) {
+      rowData.push(shopList[i].person, shopList[i].assistant);
       excelData.push(rowData);
     }
     await new Promise<void>((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 1000 * 30);
+      }, 1000);
     });
   }
 }
@@ -263,6 +341,7 @@ function createSubWindow(shop: Shop, isBackgroundTask: boolean): Promise<any> {
   );
 
   let timer: number;
+  let needLoginTimer: number;
 
   return Promise.race([
     new Promise((resolve, reject) => {
@@ -276,31 +355,22 @@ function createSubWindow(shop: Shop, isBackgroundTask: boolean): Promise<any> {
       }, 60000 * 5);
     }),
     new Promise((resolve, reject) => {
-      win.webContents.on('did-navigate', (event, url) => {
-        console.log(`已经导航到: ${url}`);
-        if (!isTaskRunning) return;
-        if (
-          url.indexOf('https://passport.shop.jd.com/login/index.action') > -1
-        ) {
-          mainWindow?.webContents.send('need-login', shop.name);
-
-          setTimeout(() => {
-            resolve(rowData);
-          }, 60000 * 4);
-          // https://jzt.jd.com/jst/#/index
-        } else if (url.includes('https://jzt.jd.com/jst/#/index')) {
-          resolve(rowData);
-        }
-      });
+      // win.webContents.on('did-navigate', (event, url) => {
+      //   console.log(`已经导航到: ${url}`);
+      //   // if (!isTaskRunning) return;
+      //
+      // });
 
       win.webContents.on('did-finish-load', () => {
         const currentUrl = win.webContents.getURL();
         console.log('did-finish-load', currentUrl);
-        win.webContents.executeJavaScript(`
+        if (isTaskRunning) {
+          win.webContents.executeJavaScript(`
             setTimeout(() => {
               window.location.reload();
             }, 15000)
         `);
+        }
         // https://jzt.jd.com/home/#/index
         if (
           isTaskRunning &&
@@ -342,12 +412,41 @@ function createSubWindow(shop: Shop, isBackgroundTask: boolean): Promise<any> {
          }
     `);
         } else if (
+          currentUrl.indexOf(
+            'https://passport.shop.jd.com/login/index.action',
+          ) > -1
+        ) {
+          mainWindow?.webContents.send('need-login', shop.name);
+
+          win.webContents.executeJavaScript(`
+               var wrap = document.createElement('div');
+              wrap.style.cssText = 'position: absolute;left:200px;top: 50%;width: 450px;height: 100px;border: 2px solid blue;background: skyblue; line-height: 100px;text-align: center;font-size: 20px;'
+              wrap.innerText = '登录：${shop.name}';
+              document.documentElement.appendChild(wrap);
+          `);
+
+          // @ts-ignore
+          needLoginTimer = setTimeout(() => {
+            resolve(rowData);
+          }, 60000 * 4);
+          // https://jzt.jd.com/jst/#/index
+        } else if (currentUrl.includes('https://jzt.jd.com/jst/#/index')) {
+          resolve(rowData);
+        } else if (
           // eslint-disable-next-line no-dupe-else-if
           isTaskRunning &&
           currentUrl.includes('https://jzt.jd.com/gw/index')
         ) {
           // 进入这个页面代表没有京准通
           resolve(rowData);
+        }
+
+        if (
+          currentUrl.indexOf(
+            'https://passport.shop.jd.com/login/index.action',
+          ) === -1
+        ) {
+          clearTimeout(needLoginTimer);
         }
       });
 
@@ -559,7 +658,7 @@ const createWindow = async () => {
     minWidth: 1000,
     minHeight: 600,
     webPreferences: {
-      devTools: false,
+      devTools: true,
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
         : path.join(__dirname, '../../.erb/dll/preload.js'),
@@ -570,7 +669,7 @@ const createWindow = async () => {
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
@@ -624,6 +723,8 @@ app
   .whenReady()
   .then(() => {
     createWindow();
+    // console.log(screen.getAllDisplays(), 'screen');
+
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.

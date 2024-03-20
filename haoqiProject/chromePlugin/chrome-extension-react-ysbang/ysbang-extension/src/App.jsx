@@ -1,6 +1,6 @@
 import { Component } from 'react'
 import './App.scss'
-import { Button, Tabs, InputNumber, Space, Input, Tag , Table} from 'antd'
+import {Button, Tabs, InputNumber, Space, Input, Tag, Table, Form} from 'antd';
 const { TextArea } = Input;
 import {
   getEx,
@@ -12,6 +12,23 @@ import {
   cancelAudio,
   downloadExcel,
 } from './utils/utils';
+import { AES } from 'crypto-js'
+import JSEncrypt from 'jsencrypt'
+
+const publicKey = `
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0n/X5YegvOwG2VFyPkU5
+fHf+GQlOUp8gNE/gqhlNQS8stC0tvfcI/tsBXL20woSOkygaKV5ivWB+qd8R2P+5
+1JgV8anl7Uj2y++RH+VmEawmpzsPv/pkr09qADrtpJKgoz82mV3rSqPIoa88aqjb
+31up/BLqTI+SiZp6tP8BPpiKGtiWLX4r7BXGX6luOpz8jwBpCusIISzrcg8zNV2o
+M4qXnweThh6w71o7d3mORa61CO0JvMopbEalZ0jrUSgDkC/wdYjpiUZtk9sGDVeM
+cDJgedt1KG5eUBGyoNPiZWdMaWEc+Z9pjdgCLIeDsboDDTDC4Tu0qZCLbVHXgQ3Y
+fwIDAQAB
+-----END PUBLIC KEY-----
+`
+
+const encrypt = new JSEncrypt()
+encrypt.setPublicKey(publicKey)
 
 const taskMgr = new TaskMgr()
 
@@ -39,6 +56,10 @@ class App extends Component {
       searchHasGoodsArr: searchHasGoodsStr.split('\n').filter(i => i),
       searchHasGoodsResult: [],
       lastSearchHasGoodsIndex: localStorage.getItem('lastSearchHasGoodsIndex') || 0,
+
+      username: '',
+      password: '',
+      isLogin: false
     }
   }
 
@@ -402,6 +423,34 @@ class App extends Component {
     })
   }
 
+  handleLogin = (values) => {
+    const { username, password } = values
+
+    // 生成一个随机的aes秘钥
+    const aesKey = Math.random().toString(36)
+    // 使用公钥加密aes秘钥
+    const encryptAesKey = encrypt.encrypt(aesKey)
+
+    const body = AES.encrypt(JSON.stringify(values), aesKey).toString();
+
+    fetch('https://', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+        'F-Y-Key': encryptAesKey,
+      },
+      body,
+    }).then((res) => {
+      return res.json()
+    }).then((res) => {
+      if (res && res.code === 0) {
+        this.setState({
+          isLogin: true
+        })
+      }
+    })
+  }
+
   render() {
     const {
       appVisible,
@@ -418,6 +467,9 @@ class App extends Component {
       searchHasGoodsResult,
       lastSearchHasGoodsIndex,
       searchDelay,
+      isLogin,
+      username,
+      password,
     } = this.state
 
     const columns = [
@@ -456,8 +508,6 @@ class App extends Component {
         dataIndex: 'queryTime',
       }
   ]
-
-
     const tabList = [
       {
         key: '0',
@@ -546,17 +596,81 @@ class App extends Component {
           type="primary"
           style={{
             position: 'fixed',
-          right: '10px',
-          top: '50px',
-          zIndex: '9999',
+            right: '10px',
+            top: '50px',
+            zIndex: '9999',
         }}>{appVisible ? '隐藏' : '显示'}插件</Button>
-        <div className={`App ${appVisible?"":"hide"}`}>
-          <Tabs
+
+        <div className={`App ${appVisible ? "" : "hide"}`}>
+          {
+            !isLogin && <Form
+              name="basic"
+              labelCol={{
+                span: 8,
+              }}
+              wrapperCol={{
+                span: 16,
+              }}
+              style={{
+                marginTop: 200,
+                maxWidth: 600,
+              }}
+
+              initialValues={{
+                username,
+                password,
+              }}
+
+              onFinish={this.handleLogin}
+              onFinishFailed={()=>{}}
+              autoComplete="off"
+            >
+              <Form.Item
+                label="用户名"
+                name="username"
+                rules={[
+                  {
+                    required: true,
+                    message: '输入账号',
+                  },
+                ]}
+              >
+                <Input />
+              </Form.Item>
+
+              <Form.Item
+                label="密码"
+                name="password"
+                rules={[
+                  {
+                    required: true,
+                    message: '输入密码',
+                  },
+                ]}
+              >
+                <Input.Password />
+              </Form.Item>
+
+              <Form.Item
+                wrapperCol={{
+                  offset: 8,
+                  span: 16,
+                }}
+              >
+                <Button type="primary" htmlType="submit">
+                  登录
+                </Button>
+              </Form.Item>
+            </Form>
+          }
+          {
+            isLogin && <Tabs
             activeKey={tabIndex}
             onChange={this.handleTabChange}
             type="card"
             items={tabList}
           />
+        }
         </div>
       </>
     )

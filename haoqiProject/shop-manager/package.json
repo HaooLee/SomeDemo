@@ -1,7 +1,6 @@
 {
   "description": "京东店铺助手",
-  "keywords": [
-  ],
+  "keywords": [],
   "homepage": "",
   "bugs": {
     "url": ""
@@ -27,6 +26,7 @@
     "package": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --publish never && npm run build:dll",
     "package-win": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --win --x64 --publish never  && npm run build:dll",
     "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
+    "rebuild:robot": "cd node_modules/robotjs && node-gyp rebuild --runtime=electron --target=26.6.10 --dist-url=https://electronjs.org/headers --abi=104 --arch=arm64 && cd ../..",
     "start": "ts-node ./.erb/scripts/check-port-in-use.js && npm run start:renderer",
     "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
@@ -88,7 +88,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "appium": "^2.5.1",
+    "appium-uiautomator2-driver": "^3.0.2",
+    "webdriverio": "^8.34.1"
   },
   "devDependencies": {
     "@electron/notarize": "^2.1.0",

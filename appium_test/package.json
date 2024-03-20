@@ -1,0 +1,20 @@
+{
+  "name": "appium_test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "appium": "^2.5.1",
+    "appium-webdriverio": "^1.0.4",
+    "webdriverio": "^8.33.1"
+  },
+  "devDependencies": {
+    "appium-uiautomator2-driver": "^3.0.2"
+  }
+}

@@ -55,3 +55,11 @@ export const createExcel = (data: any[], savePath: string) => {
   XLSX.writeFile(workbook, fileName);
   return fileName;
 };
+
+export const parseExcel = (filePath: string) => {
+  const workbook = XLSX.readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  return data;
+};
