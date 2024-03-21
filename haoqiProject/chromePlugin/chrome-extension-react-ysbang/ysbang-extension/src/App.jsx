@@ -12,18 +12,18 @@ import {
   cancelAudio,
   downloadExcel,
 } from './utils/utils';
-import { AES } from 'crypto-js'
+import CryptoJS from 'crypto-js'
 import JSEncrypt from 'jsencrypt'
 
 const publicKey = `
 -----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0n/X5YegvOwG2VFyPkU5
-fHf+GQlOUp8gNE/gqhlNQS8stC0tvfcI/tsBXL20woSOkygaKV5ivWB+qd8R2P+5
-1JgV8anl7Uj2y++RH+VmEawmpzsPv/pkr09qADrtpJKgoz82mV3rSqPIoa88aqjb
-31up/BLqTI+SiZp6tP8BPpiKGtiWLX4r7BXGX6luOpz8jwBpCusIISzrcg8zNV2o
-M4qXnweThh6w71o7d3mORa61CO0JvMopbEalZ0jrUSgDkC/wdYjpiUZtk9sGDVeM
-cDJgedt1KG5eUBGyoNPiZWdMaWEc+Z9pjdgCLIeDsboDDTDC4Tu0qZCLbVHXgQ3Y
-fwIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxQQQBO9v7hovmGekn8OJ
+8uFdBT6Mqg/dMXyIBLTp9+I1LroysveL6hLeQ7XmC1FeWDbhYXpjHcqE2x5+kOUB
+B4JCW5oYkRim63N2y2ME+bmgMx9llosoub/VsWtINYhRI9BkCUtnSh7mh0SS+QCz
+JygisI3d4yR8vH7W1HldKfy+nDPyCrrafrUtmCzW9B1UQad8aH3lGVSACfjoTF+e
+8+eoBDlK4Poe/QTDgNM/UV2hp+RT3k1MuBjJgkjdTuWrPOOQznV90+AFr8drK55G
+5zQJ/+bPYmb5kqcsoXYn08H+FSzRjJ3qyxuAZsJMk+Upe6xTjHjYFdq9ZSv0+Kqf
+IwIDAQAB
 -----END PUBLIC KEY-----
 `
 
@@ -57,8 +57,8 @@ class App extends Component {
       searchHasGoodsResult: [],
       lastSearchHasGoodsIndex: localStorage.getItem('lastSearchHasGoodsIndex') || 0,
 
-      username: '',
-      password: '',
+      username: localStorage.getItem('uuun') || '',
+      password: localStorage.getItem('pppw') || '',
       isLogin: false
     }
   }
@@ -423,17 +423,25 @@ class App extends Component {
     })
   }
 
+  createHash(text) {
+    return CryptoJS.SHA256(text).toString()
+  }
+
+
   handleLogin = (values) => {
     const { username, password } = values
 
+    localStorage.setItem('uuun', username)
+    localStorage.setItem('pppw', password)
+
     // 生成一个随机的aes秘钥
-    const aesKey = Math.random().toString(36)
+    const aesKey = this.createHash(Math.random().toString(32).slice(2, 8))
     // 使用公钥加密aes秘钥
     const encryptAesKey = encrypt.encrypt(aesKey)
 
-    const body = AES.encrypt(JSON.stringify(values), aesKey).toString();
+    const body = CryptoJS.AES.encrypt(JSON.stringify(values), aesKey).toString();
 
-    fetch('https://', {
+    fetch('http://47.95.211.162/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -443,9 +451,9 @@ class App extends Component {
     }).then((res) => {
       return res.json()
     }).then((res) => {
-      if (res && res.code === 0) {
+      if (res && res.code === 0){
         this.setState({
-          isLogin: true
+          isLogin: true,
         })
       }
     })

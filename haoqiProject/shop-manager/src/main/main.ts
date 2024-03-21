@@ -32,19 +32,8 @@ import {
   getDate,
 } from '../utils/date';
 import { createExcel, parseExcel } from '../utils/createExcel';
-
-// robot.setMouseDelay(2);
-//
-// const twoPI = Math.PI * 2.0;
-// const screenSize = robot.getScreenSize();
-// const height = screenSize.height / 2 - 10;
-// const { width } = screenSize;
-//
-// for (let x = 0; x < width; x++) {
-//   const y = height * Math.sin((twoPI * x) / width) + height;
-//   robot.moveMouse(x, y);
-// }
-console.log(process.versions);
+import { spawn } from 'node:child_process';
+import { remote } from 'webdriverio';
 
 class AppUpdater {
   constructor() {
@@ -77,6 +66,51 @@ let isTaskRunning = false;
 let excelData: any[] = [];
 
 let savePath = '';
+
+let appium;
+
+let appiumStarted = false;
+
+let driver = null;
+
+const appiumPath = path.normalize(
+  path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `appium${process.platform === 'win32' ? '.cmd' : ''}`,
+  ),
+);
+console.log(appiumPath);
+
+async function startAppiumServer(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // 启动 Appium 服务器
+    appium = spawn(appiumPath);
+    // 监听启动日志
+    appium.stdout.on('data', (data) => {
+      // console.log(`  Appium 日志: \n ${data}`);
+      if (data.includes(`automationName 'UiAutomator2'`)) {
+        console.log(
+          '--------------------------Appium 服务器已启动--------------------------',
+        );
+        setTimeout(() => {
+          appiumStarted = true;
+          resolve();
+        }, 3000);
+      }
+    });
+    // 监听错误日志
+    appium.stderr.on('data', (data) => {
+      console.error(`Appium 错误日志: ${data}`);
+    });
+    // 监听进程退出事件
+    appium.on('close', (code) => {
+      appiumStarted = false;
+      console.log(`Appium 进程已退出，退出码: ${code}`);
+    });
+  });
+}
 
 ipcMain.on('open-file', async (event, arg) => {
   shell.openPath(savePath);
@@ -724,6 +758,7 @@ app
   .then(() => {
     createWindow();
     // console.log(screen.getAllDisplays(), 'screen');
+    startAppiumServer();
 
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
