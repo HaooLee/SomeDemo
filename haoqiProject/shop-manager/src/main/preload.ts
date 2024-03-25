@@ -15,7 +15,8 @@ export type Channels =
   | 'open-save-dialog' // 打开保存对话框
   | 'open-file' // 打开文件
   | 'import-shop-list' // 导入店铺列表
-  | 'update-shop-real-info'; // 更新店铺真实信息
+  | 'update-shop-real-info' // 更新店铺真实信息
+  | 'show-message'
 
 const electronHandler = {
   ipcRenderer: {

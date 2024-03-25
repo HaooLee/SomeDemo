@@ -66,6 +66,13 @@ function MainPage() {
       console.error(e);
     });
 
+    window.electron.ipcRenderer.on('show-message',(message:string)=>{
+      notification.open({
+        message: '提示',
+        description:message,
+      })
+    })
+
     const needLogin = (name) => {
       const utterance = new SpeechSynthesisUtterance(
         `${name}登录失效，请重新登录`,

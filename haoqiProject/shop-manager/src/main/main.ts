@@ -83,6 +83,171 @@ const appiumPath = path.normalize(
 );
 console.log(appiumPath);
 
+async function initRemote() {
+  if(!driver){
+    const capabilities = {
+      platformName: 'Android',
+      'appium:automationName': 'UiAutomator2',
+      'appium:deviceName': 'Android',
+      "appium:enableMultiWindows": true,
+      "appium:noReset": true,
+      'appium:appPackage': 'com.jd.jmworkstation',
+      "appium:ensureWebviewsHavePages": true,
+      "appium:nativeWebScreenshot": true,
+      "appium:newCommandTimeout": 1000,
+      "appium:connectHardwareKeyboard": true,
+    };
+
+    const wdOpts = {
+      tname: process.env.APPIUM_HOST || '127.0.0.1',
+      port: parseInt(process.env.APPIUM_PORT, 10) || 4723,
+      path: '/',
+      connectionRetryCount: 0,
+      logLevel: 'info',
+      capabilities,
+    };
+    // @ts-ignore
+    driver = await remote(wdOpts);
+  }
+  return driver
+}
+
+async function runTaskCheckoutTargetAccount(shopName) {
+  try {
+    //const batteryItem = await driver.$('//android.view.View[@resource-id="com.jd.jmworkstation:id/arrow"]');
+    // const batteryItem = await driver.$('//android.widget.ScrollView/android.widget.Switch[3]');
+
+    // 用户名的容器
+    // //androidx.compose.ui.platform.ComposeView/android.view.View/android.view.View
+
+    async function getNameListContainer() {
+      const container = await driver.$('//androidx.compose.ui.platform.ComposeView/android.view.View/android.view.View');
+      if (container.error) {
+        return null;
+      }
+      return container;
+    }
+
+    async function getIsDialogShow() {
+      const dialog = await driver.$('//android.widget.TextView[@text="添加新账号"]');
+      console.log('dialog', dialog);
+      if (dialog.error) {
+        return false;
+      }
+      return true;
+    }
+
+    async function getShopBtn(shopName) {
+      console.log('开始查找店铺按钮', shopName);
+      const btnRes = await driver.$(`//android.widget.TextView[@text="${shopName}"]`)
+      console.log('btnRes', btnRes);
+      if (btnRes.error) {
+        return null;
+      }
+      return btnRes;
+    }
+
+    // 等待页面出现
+
+    let count = 50;
+    while (count > 0) {
+
+      if (!(await getIsDialogShow())) {
+        console.log('未找到用户名的容器 执行打开列表操作');
+        const listOpenBtn = await driver.$('//android.widget.TextView[@resource-id="com.jd.jmworkstation:id/tvShop"]');
+        await listOpenBtn.click();
+        await driver.pause(1000);
+      }
+
+
+      // 判断是否有店铺按钮 没找到店铺按钮就往上滑动 如果找到底部还没有这个账号 就报错
+      let shopBtn = await getShopBtn(shopName);
+      let count = 0;
+      // while (!shopBtn && count < 10) {
+      count++;
+      const container = await getNameListContainer();
+      const { width, height } = await driver.getWindowSize();
+      // 获取容器的bounds
+      const containerRect = await driver.getElementRect(container.elementId);
+      console.log('containerRect', containerRect);
+
+      const start = { x: width / 2, y: containerRect.height - 5 };
+      const end = { x: width / 2, y: containerRect.y };
+
+      console.log('开始滑动', start, end);
+
+      // {"actions":[
+      //{"type":"pointer",
+      //"id":"finger1","parameters":{"pointerType":"touch"},"actions":[{"type":"pointerMove","duration":0,"x":519,"y":813},{"type":"pointerDown","button":0},{"type":"pointerMove","duration":750,"origin":"viewport","x":511,"y":424},{"type":"pointerUp","button":0}]}]}
+      await driver.performActions(
+        [
+          {
+            type: 'pointer',
+            id: 'finger1',
+            parameters: { pointerType: 'touch' },
+            actions: [
+              { type: 'pointerMove', duration: 0, x: start.x, y: start.y },
+              { type: 'pointerDown', button: 0 },
+              { type: 'pointerMove', duration: 150, origin: 'viewport', x: end.x, y: end.y },
+              { type: 'pointerUp', button: 0 }
+            ]
+          }
+        ]
+      );
+
+      shopBtn = await getShopBtn(shopName);
+      // }
+      if (shopBtn) {
+        await shopBtn.click();
+        await driver.pause(2000);
+        return true;
+      }
+      count--;
+    }
+
+    return false;
+
+  } catch (error) {
+    console.error('runTask error', error);
+  }
+}
+
+async function runTaskGoScanPage() {
+  const scanBtn = await driver.$(`//android.widget.LinearLayout[@resource-id="com.jd.jmworkstation:id/iv_scan"]/android.view.View`)
+  await scanBtn.click()
+  await driver.pause(1000)
+}
+
+async function runTaskFindAndClickLogin( retryCount = 20) {
+  const loginBtn = await driver.$('android.widget.TextView[@resource-id="com.jd.jmworkstation:id/qr_login"]');
+  if (loginBtn.error && retryCount > 0) {
+    await driver.pause(1000);
+    return runTaskFindAndClickLogin(retryCount - 1);
+  }else if (loginBtn.error) {
+    return false;
+  }
+  await loginBtn.click();
+  return true;
+}
+
+async function execLogin(shopName) {
+  await initRemote().catch(()=>{
+    mainWindow.webContents.send('show-message', '连接手机失败 ')
+  })
+  // 立霖家纺专营店
+  const isFound = await runTaskCheckoutTargetAccount(shopName).catch(()=>{
+    mainWindow.webContents.send('show-message', '查找已登录账号失败，请检查手机是否登录')
+  });
+  if (isFound) {
+    await runTaskGoScanPage().catch(console.error);
+    const clickedLogin = await runTaskFindAndClickLogin().catch(console.error);
+    if (!clickedLogin) {
+      mainWindow.webContents.send('show-message', '登录失败')
+    }
+  }
+}
+
+
 async function startAppiumServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     // 启动 Appium 服务器
@@ -450,8 +615,10 @@ function createSubWindow(shop: Shop, isBackgroundTask: boolean): Promise<any> {
             'https://passport.shop.jd.com/login/index.action',
           ) > -1
         ) {
-          mainWindow?.webContents.send('need-login', shop.name);
-
+          // mainWindow?.webContents.send('need-login', shop.name);
+          execLogin(shop.name).then(()=>{
+            clearTimeout(needLoginTimer)
+          })
           win.webContents.executeJavaScript(`
                var wrap = document.createElement('div');
               wrap.style.cssText = 'position: absolute;left:200px;top: 50%;width: 450px;height: 100px;border: 2px solid blue;background: skyblue; line-height: 100px;text-align: center;font-size: 20px;'
@@ -758,7 +925,7 @@ app
   .then(() => {
     createWindow();
     // console.log(screen.getAllDisplays(), 'screen');
-    startAppiumServer();
+    // startAppiumServer();
 
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
