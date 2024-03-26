@@ -1,5 +1,7 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import { AnsiUp } from 'ansi_up'
+const ansi_up = new AnsiUp();
 import {
   List,
   Button,
@@ -14,7 +16,7 @@ import {
   Space,
   Rate,
   Switch,
-  Tag,
+  Tag, Popover
 } from 'antd';
 import './App.css';
 
@@ -45,6 +47,12 @@ function MainPage() {
   const [filePath, setFilePath] = useState(
     localStorage.getItem('filePath') || '',
   );
+  const logs = useRef([])
+
+  const setLogs = (list: any) => {
+    logs.current = list;
+    forceUpdate();
+  }
 
   const setShopList = (list: Shop[]) => {
     shopList.current = list;
@@ -57,7 +65,13 @@ function MainPage() {
   };
 
   useEffect(() => {
-    window.electron.ipcRenderer.on('main-err', (e) => {
+    const rmal = window.electron.ipcRenderer.on('appium-log', (log)=>{
+      logs.current.push(log)
+      if (logs.current.length > 500) logs.current.shift()
+      setLogs(logs.current)
+    })
+
+   const  rmmr = window.electron.ipcRenderer.on('main-err', (e) => {
       notifiyApi.error({
         message: '导出失败',
         description: e.toString(),
@@ -66,10 +80,11 @@ function MainPage() {
       console.error(e);
     });
 
-    window.electron.ipcRenderer.on('show-message',(message:string)=>{
+    const rmsm = window.electron.ipcRenderer.on('show-message',(config:any)=>{
       notification.open({
-        message: '提示',
-        description:message,
+        type:config.type,
+        message: config.message,
+        description:config.description,
       })
     })
 
@@ -120,7 +135,6 @@ function MainPage() {
     const st = window.electron.ipcRenderer.on('stop-task', () => {
       setIsStart(false);
     });
-
     const spc = window.electron.ipcRenderer.on(
       'save-path-changed',
       (fPath: string) => {
@@ -148,13 +162,15 @@ function MainPage() {
       setShopList(newShopList);
       console.log('updateShopRealInfo', arg);
     };
-
     const rmri = window.electron.ipcRenderer.on(
       'update-shop-real-info',
       updateShopRealInfo,
     );
 
     return () => {
+      rmal();
+      rmmr();
+      rmsm();
       rmnl();
       rmusle();
       rmee();
@@ -263,6 +279,10 @@ function MainPage() {
     window.electron.ipcRenderer.sendMessage('export-excel', filePath);
   };
 
+  const handleConnectPhone = () =>{
+    window.electron.ipcRenderer.sendMessage('connect-phone');
+  }
+
   const handleImportShopList = () => {
     window.electron.ipcRenderer.once('import-shop-list', (arg: any) => {
       // eslint-disable-next-line no-console
@@ -275,6 +295,8 @@ function MainPage() {
     window.electron.ipcRenderer.sendMessage('import-shop-list');
   };
 
+  // @ts-ignore
+  // @ts-ignore
   return (
     <div>
       <h1
@@ -310,6 +332,30 @@ function MainPage() {
             <Button type="primary" onClick={() => handleExportExcel()}>
               导出Excel
             </Button>
+            <Popover content={
+              <div style={{
+                maxWidth: '800px',
+                maxHeight: '400px',
+                overflowY: 'auto',
+              }} >
+                {logs.current.map((item, index) => (
+                  <div style={{
+                    borderBottom: '1px dashed #ccc',
+                  }} key={index} dangerouslySetInnerHTML={{
+                    __html:ansi_up.ansi_to_html(item)
+                  }}>
+                  </div>
+                ))}
+              </div>
+            }
+                     title="连接日志"
+                     placement="bottom"
+                     trigger="hover">
+              <Button type="primary" onClick={() => handleConnectPhone()}>
+                连接手机
+              </Button>
+            </Popover>
+
             <Space>
               <div>后台静默统计</div>
               <Switch

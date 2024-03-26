@@ -67,21 +67,9 @@ let excelData: any[] = [];
 
 let savePath = '';
 
-let appium;
-
 let appiumStarted = false;
 
 let driver = null;
-
-const appiumPath = path.normalize(
-  path.join(
-    __dirname,
-    'node_modules',
-    '.bin',
-    `appium${process.platform === 'win32' ? '.cmd' : ''}`,
-  ),
-);
-console.log(appiumPath);
 
 async function initRemote() {
   if(!driver){
@@ -100,14 +88,28 @@ async function initRemote() {
 
     const wdOpts = {
       tname: process.env.APPIUM_HOST || '127.0.0.1',
-      port: parseInt(process.env.APPIUM_PORT, 10) || 4723,
+      port: 47233,
       path: '/',
       connectionRetryCount: 0,
       logLevel: 'info',
       capabilities,
     };
-    // @ts-ignore
-    driver = await remote(wdOpts);
+    try {
+      // @ts-ignore
+      driver = await remote(wdOpts);
+      mainWindow.webContents.send('show-message', {
+        type: 'success',
+        message: '成功',
+        description: '连接手机成功',
+      })
+    }catch (e){
+      mainWindow.webContents.send('show-message', {
+        type: 'error',
+        message: '失败',
+        description: '连接手机失败',
+      })
+      return
+    }
   }
   return driver
 }
@@ -159,7 +161,6 @@ async function runTaskCheckoutTargetAccount(shopName) {
         await driver.pause(1000);
       }
 
-
       // 判断是否有店铺按钮 没找到店铺按钮就往上滑动 如果找到底部还没有这个账号 就报错
       let shopBtn = await getShopBtn(shopName);
       let count = 0;
@@ -206,7 +207,6 @@ async function runTaskCheckoutTargetAccount(shopName) {
     }
 
     return false;
-
   } catch (error) {
     console.error('runTask error', error);
   }
@@ -231,36 +231,49 @@ async function runTaskFindAndClickLogin( retryCount = 20) {
 }
 
 async function execLogin(shopName) {
-  await initRemote().catch(()=>{
-    mainWindow.webContents.send('show-message', '连接手机失败 ')
-  })
+  try{
+    await initRemote()
+  }catch (e){
+    return
+  }
   // 立霖家纺专营店
   const isFound = await runTaskCheckoutTargetAccount(shopName).catch(()=>{
-    mainWindow.webContents.send('show-message', '查找已登录账号失败，请检查手机是否登录')
+    mainWindow.webContents.send('show-message', {
+      type: 'error',
+      message: '失败',
+      description: `查找已登录账号失败，请检查手机是否登录《${shopName}》账号`,
+    })
   });
   if (isFound) {
     await runTaskGoScanPage().catch(console.error);
     const clickedLogin = await runTaskFindAndClickLogin().catch(console.error);
     if (!clickedLogin) {
-      mainWindow.webContents.send('show-message', '登录失败')
+      mainWindow.webContents.send('show-message', {
+        type: 'error',
+        message: '失败',
+        description: `未找到登录按钮，请检查手机是否正对二维码`,
+      })
     }
   }
 }
 
-
 async function startAppiumServer(): Promise<void> {
+  if (appiumStarted){
+    return Promise.resolve();
+  }
   return new Promise((resolve, reject) => {
     // 启动 Appium 服务器
-    appium = spawn(appiumPath);
+    const appium = spawn( 'appium', ['-p', '47233']);
     // 监听启动日志
     appium.stdout.on('data', (data) => {
       // console.log(`  Appium 日志: \n ${data}`);
+      mainWindow.webContents.send('appium-log', `Appium 日志: ${data}`);
       if (data.includes(`automationName 'UiAutomator2'`)) {
         console.log(
           '--------------------------Appium 服务器已启动--------------------------',
         );
+        appiumStarted = true
         setTimeout(() => {
-          appiumStarted = true;
           resolve();
         }, 3000);
       }
@@ -268,11 +281,13 @@ async function startAppiumServer(): Promise<void> {
     // 监听错误日志
     appium.stderr.on('data', (data) => {
       console.error(`Appium 错误日志: ${data}`);
+      mainWindow.webContents.send('appium-log', `Appium 错误日志: ${data}`);
     });
     // 监听进程退出事件
     appium.on('close', (code) => {
-      appiumStarted = false;
+      appiumStarted = false
       console.log(`Appium 进程已退出，退出码: ${code}`);
+      mainWindow.webContents.send('appium-log', `Appium 进程已退出，退出码: ${code}`);
     });
   });
 }
@@ -280,6 +295,11 @@ async function startAppiumServer(): Promise<void> {
 ipcMain.on('open-file', async (event, arg) => {
   shell.openPath(savePath);
 });
+
+ipcMain.on('connect-phone', async ()=>{
+  await startAppiumServer()
+  await initRemote()
+})
 
 async function openDialog(): Promise<string | undefined> {
   const result = await dialog.showOpenDialog({

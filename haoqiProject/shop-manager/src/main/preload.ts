@@ -17,6 +17,8 @@ export type Channels =
   | 'import-shop-list' // 导入店铺列表
   | 'update-shop-real-info' // 更新店铺真实信息
   | 'show-message'
+  | 'connect-phone'
+  | 'appium-log'
 
 const electronHandler = {
   ipcRenderer: {
