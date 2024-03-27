@@ -81,6 +81,7 @@
     }
   },
   "dependencies": {
+    "ansi_up": "^6.0.2",
     "antd": "^5.15.0",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",
@@ -88,10 +89,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
-    "xlsx": "^0.18.5",
-    "appium": "^2.5.1",
-    "appium-uiautomator2-driver": "^3.0.2",
-    "webdriverio": "^8.34.1"
+    "webdriverio": "^8.34.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@electron/notarize": "^2.1.0",
@@ -231,6 +230,5 @@
       "src/main/**"
     ],
     "logLevel": "quiet"
-  },
-  "__npminstall_done": false
+  }
 }

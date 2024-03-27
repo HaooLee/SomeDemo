@@ -32,7 +32,7 @@ import {
   getDate,
 } from '../utils/date';
 import { createExcel, parseExcel } from '../utils/createExcel';
-import { spawn } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { remote } from 'webdriverio';
 
 class AppUpdater {
@@ -88,7 +88,7 @@ async function initRemote() {
 
     const wdOpts = {
       tname: process.env.APPIUM_HOST || '127.0.0.1',
-      port: 47233,
+      port: 47238,
       path: '/',
       connectionRetryCount: 0,
       logLevel: 'info',
@@ -219,7 +219,7 @@ async function runTaskGoScanPage() {
 }
 
 async function runTaskFindAndClickLogin( retryCount = 20) {
-  const loginBtn = await driver.$('android.widget.TextView[@resource-id="com.jd.jmworkstation:id/qr_login"]');
+  const loginBtn = await driver.$('//android.widget.TextView[@resource-id="com.jd.jmworkstation:id/qr_login"]');
   if (loginBtn.error && retryCount > 0) {
     await driver.pause(1000);
     return runTaskFindAndClickLogin(retryCount - 1);
@@ -263,7 +263,7 @@ async function startAppiumServer(): Promise<void> {
   }
   return new Promise((resolve, reject) => {
     // 启动 Appium 服务器
-    const appium = spawn( 'appium', ['-p', '47233']);
+    const appium = exec('appium -p 47238');
     // 监听启动日志
     appium.stdout.on('data', (data) => {
       // console.log(`  Appium 日志: \n ${data}`);
