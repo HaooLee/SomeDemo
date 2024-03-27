@@ -33,7 +33,7 @@ import {
 } from '../utils/date';
 import { createExcel, parseExcel } from '../utils/createExcel';
 import { exec } from 'node:child_process';
-import { remote } from 'webdriverio';
+const  { remote } = require('webdriverio') ;
 
 class AppUpdater {
   constructor() {
