@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+
+<a href="sslocal://miniapp?ticket=v1_197987330">点我试试</a>
+
+<script>
+  fetch('https://ace-prod-3-0-public-cdn.bjjk66.com/deploy/727/4750/ivf/727-4750.part001.ivf', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Range': 'bytes=0-1374'
+    }
+  }).then(resp => {
+    const contentLength = resp.headers.get('content-length');
+    console.log(contentLength)
+  })
+</script>
+</body>
+</html>

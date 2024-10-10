@@ -1,0 +1,96 @@
+#root {
+}
+.container{
+  width: 1200px;
+  margin: auto;
+  min-height: 800px;
+  //border: 1px solid red;
+  //background: #f1eeee;
+  display: flex;
+
+  .history-wrap{
+    //border: 1px solid purple;
+    flex: 1;
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+        margin-top: 20px;
+        //border: 1px solid red;
+        th,td {
+            border: 1px solid #f1eeee;
+            padding: 10px;
+            text-align: center;
+
+          .number-container{
+            gap: 5px;
+            .number{
+              width: 25px;
+              height: 25px;
+            }
+          }
+        }
+        th {
+            background: #f56c6c;
+            color: white;
+        }
+        tr:nth-child(2n) {
+            background: #f1eeee;
+        }
+    }
+  }
+
+  .today{
+    //border: 1px solid green;
+    width: 450px;
+    //flex: 1;
+    display: flex;
+    //justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    border-left: 1px solid #f1eeee;
+
+    .ssq,.kl8 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+
+
+    //类似antd的样式
+    .btn{
+        width: 100px;
+        height: 40px;
+        background: #409eff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+  }
+}
+
+.number-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 5px 20px;
+
+  .number {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+    font-weight: bold;
+  }
+  .red-ball { background-color: #f56c6c; }
+  .blue-ball { background-color: #409eff; }
+}
+

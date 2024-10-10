@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>今天暴富</title>
+  <style>
+      .number-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: center;
+          padding: 20px;
+      }
+      .number {
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          color: white;
+          font-weight: bold;
+      }
+      .front-area { background-color: #f56c6c; }
+      .back-area { background-color: #409eff; }
+      .red-ball { background-color: #f56c6c; }
+      .blue-ball { background-color: #409eff; }
+  </style>
+</head>
+<body>
+
+<div id="container">
+
+
+</div>
+
+<script>
+  function generateDaLeTou() {
+    const frontArea = new Set();
+    const backArea = new Set();
+
+    // 生成5个前区号码
+    while (frontArea.size < 5) {
+      frontArea.add(Math.floor(Math.random() * 35) + 1);
+    }
+
+    // 生成2个后区号码
+    while (backArea.size < 2) {
+      backArea.add(Math.floor(Math.random() * 12) + 1);
+    }
+
+    return {
+      frontArea: Array.from(frontArea).sort((a, b) => a - b),
+      backArea: Array.from(backArea).sort((a, b) => a - b)
+    };
+  }
+
+  function generateShuangSeQiu() {
+    const redBalls = new Set();
+    const blueBall = Math.floor(Math.random() * 16) + 1; // 生成1个蓝球号码
+
+    // 生成6个红球号码
+    while (redBalls.size < 6) {
+      redBalls.add(Math.floor(Math.random() * 33) + 1);
+    }
+
+    return {
+      redBalls: Array.from(redBalls).sort((a, b) => a - b),
+      blueBall
+    };
+  }
+
+  // 生成快乐8
+  function generateKuaiLe8() {
+    const numbers = new Set();
+    while (numbers.size < 10) {
+      numbers.add(Math.floor(Math.random() * 80) + 1);
+    }
+    return Array.from(numbers).sort((a, b) => a - b);
+  }
+
+  // 根据今天开奖是什么选择生成哪种彩票 不包含快乐8
+  function getMoney() {
+    const today = new Date().getDay();
+    if (today === 1 || today === 3 || today === 6) {
+      return generateDaLeTou();
+    } else {
+      return generateShuangSeQiu();
+    }
+  }
+
+  //根据传入的中奖号码和自己的号码以及彩票类型进行比较 返回中奖等级和金额
+
+
+  window.onload = function() {
+    let moneyInfo = null;
+    // 存在存贮里面  每天只生成一次
+    if (!localStorage.getItem('money')) {
+      moneyInfo = {
+        date: new Date().getDate(),
+        money: getMoney(),
+        kuaiLe8: generateKuaiLe8()
+      };
+      localStorage.setItem('money', JSON.stringify(moneyInfo));
+    }else {
+      moneyInfo = JSON.parse(localStorage.getItem('money'));
+      if (moneyInfo.date !== new Date().getDate()) {
+        const newMoneyInfo = {
+          date: new Date().getDate(),
+          money: getMoney(),
+          kuaiLe8: generateKuaiLe8()
+        };
+        localStorage.setItem('money', JSON.stringify(newMoneyInfo));
+        moneyInfo = newMoneyInfo;
+      }
+    }
+
+    const money = moneyInfo.money;
+
+    const container = document.getElementById('container');
+    const numberContainer = document.createElement('div');
+    numberContainer.className = 'number-container';
+
+    if (money.frontArea && money.backArea) { // DaLeTou
+      money.frontArea.forEach(num => {
+        const numElement = createNumberElement(num, 'front-area');
+        numberContainer.appendChild(numElement);
+      });
+      money.backArea.forEach(num => {
+        const numElement = createNumberElement(num, 'back-area');
+        numberContainer.appendChild(numElement);
+      });
+    } else { // ShuangSeQiu
+      money.redBalls.forEach(num => {
+        const numElement = createNumberElement(num, 'red-ball');
+        numberContainer.appendChild(numElement);
+      });
+      const blueNumElement = createNumberElement(money.blueBall, 'blue-ball');
+      numberContainer.appendChild(blueNumElement);
+    }
+
+    container.appendChild(numberContainer);
+
+
+    // 再生成快乐8
+    const kuaiLe8 = moneyInfo.kuaiLe8
+    const kuaiLe8Container = document.createElement('div');
+    kuaiLe8Container.className = 'number-container';
+    kuaiLe8.forEach(num => {
+      const numElement = createNumberElement(num, 'front-area');
+      kuaiLe8Container.appendChild(numElement);
+    });
+    container.appendChild(kuaiLe8Container);
+  };
+
+  function createNumberElement(number, className) {
+    const element = document.createElement('div');
+    element.className = `number ${className}`;
+    element.textContent = number;
+    return element;
+  }
+
+</script>
+
+</body>
+</html>
